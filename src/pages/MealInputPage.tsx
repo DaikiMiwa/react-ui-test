@@ -17,7 +17,13 @@ import { COLORS } from '../ui/tokens'
 
 const STORAGE_KEY = 'workout-health-meals-v1'
 const PRESET_STORAGE_KEY = 'workout-health-meal-presets-v1'
-const DAILY_CALORIE_TARGET = 2200
+const DAILY_PLAN = {
+  calories: 2200,
+  protein: 150,
+  fat: 60,
+  carbs: 240,
+  waterLiters: 2.5,
+}
 const ENTRY_MODES = ['assist', 'manual'] as const
 
 type Meal = {
@@ -45,6 +51,14 @@ type MacroPreset = {
   protein: number
   fat: number
   carbs: number
+}
+
+type DailyMealLog = {
+  schemaVersion: 2
+  date: string
+  meals: Meal[]
+  waterLiters: number
+  planTargets: typeof DAILY_PLAN
 }
 
 const DEFAULT_MEALS: Meal[] = [
@@ -120,6 +134,11 @@ function formatTime() {
     minute: '2-digit',
     hour12: false,
   }).format(new Date())
+}
+
+function todayKey() {
+  const date = new Date()
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`
 }
 
 function normalizeMeal(item: Partial<Meal>, index: number): Meal {
@@ -218,18 +237,34 @@ function estimateMealFromMemo(memo: string): Pick<Meal, 'protein' | 'fat' | 'car
   }
 }
 
-function loadInitialMeals() {
-  if (typeof window === 'undefined') return DEFAULT_MEALS
+function loadInitialDailyLog(): DailyMealLog {
+  if (typeof window === 'undefined') {
+    return { schemaVersion: 2, date: todayKey(), meals: DEFAULT_MEALS, waterLiters: 1.6, planTargets: DAILY_PLAN }
+  }
 
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (!stored) return DEFAULT_MEALS
+    if (!stored) {
+      return { schemaVersion: 2, date: todayKey(), meals: DEFAULT_MEALS, waterLiters: 1.6, planTargets: DAILY_PLAN }
+    }
     const parsed = JSON.parse(stored)
-    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_MEALS
-    return parsed.map(normalizeMeal)
+    if (Array.isArray(parsed)) {
+      return { schemaVersion: 2, date: todayKey(), meals: parsed.map(normalizeMeal), waterLiters: 1.6, planTargets: DAILY_PLAN }
+    }
+    if (parsed && typeof parsed === 'object') {
+      return {
+        schemaVersion: 2,
+        date: typeof parsed.date === 'string' ? parsed.date : todayKey(),
+        meals: Array.isArray(parsed.meals) ? parsed.meals.map(normalizeMeal) : DEFAULT_MEALS,
+        waterLiters: Number.isFinite(parsed.waterLiters) ? Math.max(0, Number(parsed.waterLiters)) : 1.6,
+        planTargets: DAILY_PLAN,
+      }
+    }
   } catch {
-    return DEFAULT_MEALS
+    // Fall through to demo defaults.
   }
+
+  return { schemaVersion: 2, date: todayKey(), meals: DEFAULT_MEALS, waterLiters: 1.6, planTargets: DAILY_PLAN }
 }
 
 function loadInitialPresets() {
@@ -247,8 +282,10 @@ function loadInitialPresets() {
 }
 
 export default function MealInputPage() {
-  const [meals, setMeals] = useState<Meal[]>(loadInitialMeals)
-  const [activeMealId, setActiveMealId] = useState(() => loadInitialMeals()[0]?.id || 'meal-1')
+  const [dailyLog, setDailyLog] = useState<DailyMealLog>(loadInitialDailyLog)
+  const [meals, setMeals] = useState<Meal[]>(() => dailyLog.meals)
+  const [waterLiters, setWaterLiters] = useState(() => dailyLog.waterLiters)
+  const [activeMealId, setActiveMealId] = useState(() => dailyLog.meals[0]?.id || 'meal-1')
   const [entryMode, setEntryMode] = useState<'assist' | 'manual'>('assist')
   const [manualPresets, setManualPresets] = useState<MacroPreset[]>(loadInitialPresets)
   const [editingPresets, setEditingPresets] = useState(false)
@@ -270,8 +307,16 @@ export default function MealInputPage() {
   const savedCount = meals.filter((meal) => meal.savedAt && !meal.dirty).length
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(meals))
-  }, [meals])
+    const nextLog: DailyMealLog = {
+      schemaVersion: 2,
+      date: dailyLog.date,
+      meals,
+      waterLiters,
+      planTargets: DAILY_PLAN,
+    }
+    setDailyLog(nextLog)
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLog))
+  }, [dailyLog.date, meals, waterLiters])
 
   useEffect(() => {
     window.localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(manualPresets))
@@ -394,7 +439,14 @@ export default function MealInputPage() {
       />
 
         <AppMain withBottomNav>
-          <DailySummaryCard totals={totals} savedCount={savedCount} totalMeals={meals.length} />
+          <DailySummaryCard
+            totals={totals}
+            savedCount={savedCount}
+            totalMeals={meals.length}
+            waterLiters={waterLiters}
+            waterTarget={DAILY_PLAN.waterLiters}
+            onWaterChange={setWaterLiters}
+          />
 
           <section style={styles.mealPickerSection}>
             <SectionHeader
@@ -509,23 +561,49 @@ function DailySummaryCard({
   totals,
   savedCount,
   totalMeals,
+  waterLiters,
+  waterTarget,
+  onWaterChange,
 }: {
   totals: { protein: number; fat: number; carbs: number; calories: number }
   savedCount: number
   totalMeals: number
+  waterLiters: number
+  waterTarget: number
+  onWaterChange: (value: number) => void
 }) {
   return (
     <section style={styles.summaryCard}>
       <div style={styles.summaryHeader}>
         <div>
           <p style={styles.kicker}>TODAY'S INTAKE</p>
-          <MetricValue value={totals.calories} target={DAILY_CALORIE_TARGET} unit="kcal" size="xl" style={styles.calorieMetric} />
+          <MetricValue value={totals.calories} target={DAILY_PLAN.calories} unit="kcal" size="xl" style={styles.calorieMetric} />
         </div>
         <div style={styles.summaryBadge}>{savedCount}/{totalMeals}</div>
       </div>
 
       <MacroBar values={totals} style={styles.summaryMacroBar} />
       <MacroSummaryGrid values={totals} formatValue={(value) => formatGram(value)} style={styles.summaryMacroGrid} />
+      <div style={styles.waterInputCard}>
+        <div>
+          <span style={styles.waterLabel}>WATER</span>
+          <MetricValue value={waterLiters} target={waterTarget} unit="L" size="md" />
+        </div>
+        <div style={styles.waterActions}>
+          <button type="button" onClick={() => onWaterChange(Math.round((waterLiters + 0.25) * 100) / 100)} style={styles.waterButton}>+250ml</button>
+          <button type="button" onClick={() => onWaterChange(Math.round((waterLiters + 0.5) * 100) / 100)} style={styles.waterButton}>+500ml</button>
+        </div>
+        <label style={styles.waterDirectInput}>
+          <span style={styles.waterLabel}>DIRECT</span>
+          <input
+            value={waterLiters || ''}
+            onChange={(event) => onWaterChange(readNumericInput(event.target.value))}
+            inputMode="decimal"
+            aria-label="水分 L"
+            style={styles.waterNumberInput}
+          />
+        </label>
+      </div>
     </section>
   )
 }
@@ -869,6 +947,56 @@ const styles: { [key: string]: CSSProperties } = {
   },
   summaryMacroGrid: {
     marginTop: 14,
+  },
+  waterInputCard: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 18,
+    background: COLORS.surfaceRaised,
+    border: `1px solid ${COLORS.borderStrong}`,
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gap: 10,
+  },
+  waterLabel: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: 900,
+    letterSpacing: '0.08em',
+  },
+  waterActions: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 8,
+  },
+  waterButton: {
+    height: 34,
+    border: `1px solid ${COLORS.borderStrong}`,
+    borderRadius: 999,
+    background: COLORS.surface,
+    color: COLORS.textPrimary,
+    fontSize: 12,
+    fontWeight: 900,
+    fontFamily: 'inherit',
+  },
+  waterDirectInput: {
+    display: 'grid',
+    gap: 5,
+    padding: 10,
+    borderRadius: 14,
+    background: COLORS.surface,
+    border: `1px solid ${COLORS.border}`,
+  },
+  waterNumberInput: {
+    width: '100%',
+    minWidth: 0,
+    border: 0,
+    outline: 0,
+    background: 'transparent',
+    color: COLORS.textPrimary,
+    fontSize: 22,
+    fontWeight: 900,
+    fontFamily: 'inherit',
   },
   summaryGrid: {
     marginTop: 14,

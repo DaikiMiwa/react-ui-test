@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { ActionButton } from '../ui/ActionButton'
 import { AppHeader, MoreDots } from '../ui/AppHeader'
@@ -10,11 +10,10 @@ import { SectionHeader } from '../ui/SectionHeader'
 import { StatusPill } from '../ui/StatusPill'
 import { COLORS } from '../ui/tokens'
 
-const CALENDAR_MODES = ['plan', 'actual'] as const
 const VIEW_MODES = ['meal', 'training'] as const
 const WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日']
+const STORAGE_KEY = 'workout-health-calendar-logs-v1'
 
-type CalendarMode = (typeof CALENDAR_MODES)[number]
 type ViewMode = (typeof VIEW_MODES)[number]
 type MacroKey = 'protein' | 'fat' | 'carbs'
 
@@ -46,6 +45,8 @@ type TrainingExerciseDraft = {
 
 type DailyLog = {
   date: string
+  bodyWeight: number
+  waterLiters: number
   meals: MealDraft[]
   training: TrainingExerciseDraft[]
   note: string
@@ -68,6 +69,33 @@ type DailyPlan = {
   }>
 }
 
+function normalizeLog(item: Partial<DailyLog>): DailyLog {
+  const date = typeof item.date === 'string' ? item.date : toDateKey(new Date())
+  return {
+    ...makeBlankLog(date),
+    ...item,
+    bodyWeight: Number.isFinite(item.bodyWeight) ? Number(item.bodyWeight) : 0,
+    waterLiters: Number.isFinite(item.waterLiters) ? Number(item.waterLiters) : 0,
+    meals: Array.isArray(item.meals) ? item.meals : makeBlankLog(date).meals,
+    training: Array.isArray(item.training) ? item.training : makeBlankLog(date).training,
+    note: typeof item.note === 'string' ? item.note : '',
+  }
+}
+
+function loadInitialLogs() {
+  if (typeof window === 'undefined') return MOCK_LOGS
+
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY)
+    if (!stored) return MOCK_LOGS
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return MOCK_LOGS
+    return parsed.map(normalizeLog)
+  } catch {
+    return MOCK_LOGS
+  }
+}
+
 const MACRO_FIELDS: Array<{ key: MacroKey; label: string; shortLabel: string; color: string }> = [
   { key: 'protein', label: 'Protein', shortLabel: 'P', color: COLORS.protein },
   { key: 'fat', label: 'Fat', shortLabel: 'F', color: COLORS.fat },
@@ -88,6 +116,8 @@ function createSet(set: number, planWeight: number, planReps: number, done = fal
 const MOCK_LOGS: DailyLog[] = [
   {
     date: '2026-05-05',
+    bodyWeight: 77.8,
+    waterLiters: 2.3,
     meals: [
       { id: 'm1', label: 'MEAL 1', timeLabel: '08:15', protein: 31, fat: 12, carbs: 56, memo: 'オートミール、ヨーグルト、プロテイン', saved: true },
       { id: 'm2', label: 'MEAL 2', timeLabel: '12:42', protein: 42, fat: 18, carbs: 75, memo: '鶏むね定食、ご飯普通盛り', saved: true },
@@ -101,6 +131,8 @@ const MOCK_LOGS: DailyLog[] = [
   },
   {
     date: '2026-05-07',
+    bodyWeight: 77.5,
+    waterLiters: 1.8,
     meals: [
       { id: 'm1', label: 'MEAL 1', timeLabel: '08:30', protein: 28, fat: 10, carbs: 48, memo: '卵、トースト、プロテイン', saved: true },
       { id: 'm2', label: 'MEAL 2', timeLabel: '13:05', protein: 35, fat: 24, carbs: 86, memo: '外食ランチ。ハンバーグ定食', saved: true },
@@ -111,6 +143,8 @@ const MOCK_LOGS: DailyLog[] = [
   },
   {
     date: '2026-05-09',
+    bodyWeight: 77.4,
+    waterLiters: 2.1,
     meals: [
       { id: 'm1', label: 'MEAL 1', timeLabel: '09:10', protein: 24, fat: 7, carbs: 34, memo: 'プロテイン軽食', saved: true },
       { id: 'm2', label: 'MEAL 2', timeLabel: '12:35', protein: 44, fat: 13, carbs: 70, memo: '鶏むね、白米、野菜', saved: true },
@@ -122,6 +156,8 @@ const MOCK_LOGS: DailyLog[] = [
   },
   {
     date: '2026-05-11',
+    bodyWeight: 77.6,
+    waterLiters: 1.6,
     meals: [
       { id: 'm1', label: 'MEAL 1', timeLabel: '08:10', protein: 34, fat: 12, carbs: 58, memo: 'オートミール、ギリシャヨーグルト、バナナ、プロテイン', saved: true },
       { id: 'm2', label: 'MEAL 2', timeLabel: '12:40', protein: 46, fat: 18, carbs: 72, memo: '鶏むね肉の定食。ご飯、味噌汁、サラダ', saved: true },
@@ -226,15 +262,40 @@ function calcCalories(meal: Pick<MealDraft, 'protein' | 'fat' | 'carbs'>) {
   return Math.round(meal.protein * 4 + meal.fat * 9 + meal.carbs * 4)
 }
 
-function makeBlankLog(date: string): DailyLog {
+function setsFromPlan(planSets: string): TrainingSetDraft[] {
+  const match = planSets.match(/(\d+(?:\.\d+)?)kg\s*x\s*(\d+)\s*x\s*(\d+)/i)
+  if (!match) return [createSet(1, 20, 10)]
+
+  const weight = Number(match[1])
+  const reps = Number(match[2])
+  const count = Number(match[3])
+  return Array.from({ length: count }, (_, index) => createSet(index + 1, weight, reps))
+}
+
+function makeBlankLog(date: string, plan?: DailyPlan): DailyLog {
   return {
     date,
-    meals: [
+    bodyWeight: 0,
+    waterLiters: 0,
+    meals: plan?.meals.map((meal, index) => ({
+      id: `${date}-meal-${index + 1}`,
+      label: meal.label,
+      timeLabel: index === 0 ? '08:00' : index === 1 ? '12:30' : '19:00',
+      protein: 0,
+      fat: 0,
+      carbs: 0,
+      memo: '',
+      saved: false,
+    })) ?? [
       { id: `${date}-meal-1`, label: 'MEAL 1', timeLabel: '08:00', protein: 0, fat: 0, carbs: 0, memo: '', saved: false },
       { id: `${date}-meal-2`, label: 'MEAL 2', timeLabel: '12:30', protein: 0, fat: 0, carbs: 0, memo: '', saved: false },
       { id: `${date}-meal-3`, label: 'MEAL 3', timeLabel: '19:00', protein: 0, fat: 0, carbs: 0, memo: '', saved: false },
     ],
-    training: [],
+    training: plan?.training.map((exercise) => ({
+      name: exercise.name,
+      target: exercise.target,
+      sets: setsFromPlan(exercise.sets),
+    })) ?? [],
     note: '',
   }
 }
@@ -263,18 +324,16 @@ export default function CalendarLogPage() {
   const todayKey = toDateKey(new Date())
   const [monthDate, setMonthDate] = useState(() => new Date(2026, 4, 1))
   const [selectedDate, setSelectedDate] = useState(todayKey)
-  const [logs, setLogs] = useState<DailyLog[]>(MOCK_LOGS)
+  const [logs, setLogs] = useState<DailyLog[]>(loadInitialLogs)
   const [activeMealId, setActiveMealId] = useState('m3')
   const [activeExerciseName, setActiveExerciseName] = useState('Bench Press')
-  const [calendarMode, setCalendarMode] = useState<CalendarMode>('plan')
   const [viewMode, setViewMode] = useState<ViewMode>('meal')
 
-  const selectedLog = logs.find((log) => log.date === selectedDate) || makeBlankLog(selectedDate)
   const selectedPlan = MOCK_PLANS.find((plan) => plan.date === selectedDate)
+  const selectedLog = logs.find((log) => log.date === selectedDate) || makeBlankLog(selectedDate, selectedPlan)
   const nextPlan = MOCK_PLANS.find((plan) => plan.date > selectedDate)
   const isFutureDate = selectedDate > todayKey
-  const calendarModeItems: readonly CalendarMode[] = isFutureDate ? ['plan'] : CALENDAR_MODES
-  const renderedCalendarMode: CalendarMode = isFutureDate ? 'plan' : calendarMode
+  const isToday = selectedDate === todayKey
   const activeMeal = selectedLog.meals.find((meal) => meal.id === activeMealId) || selectedLog.meals[0]
   const activeExercise = selectedLog.training.find((exercise) => exercise.name === activeExerciseName) || selectedLog.training[0]
   const calendarDays = useMemo(() => buildCalendarDays(monthDate), [monthDate])
@@ -283,22 +342,25 @@ export default function CalendarLogPage() {
   const totalSets = selectedLog.training.reduce((sum, exercise) => sum + exercise.sets.length, 0)
   const doneSets = selectedLog.training.reduce((sum, exercise) => sum + exercise.sets.filter((set) => set.done).length, 0)
 
-  function commitLog(nextLog: DailyLog) {
-    setLogs((currentLogs) => {
-      const exists = currentLogs.some((log) => log.date === nextLog.date)
-      return exists ? currentLogs.map((log) => (log.date === nextLog.date ? nextLog : log)) : [...currentLogs, nextLog]
-    })
-  }
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(logs))
+  }, [logs])
 
   function updateSelectedLog(updater: (log: DailyLog) => DailyLog) {
-    commitLog(updater(selectedLog))
+    setLogs((currentLogs) => {
+      const plan = MOCK_PLANS.find((item) => item.date === selectedDate)
+      const currentLog = currentLogs.find((log) => log.date === selectedDate) || makeBlankLog(selectedDate, plan)
+      const nextLog = updater(currentLog)
+      return currentLogs.some((log) => log.date === nextLog.date)
+        ? currentLogs.map((log) => (log.date === nextLog.date ? nextLog : log))
+        : [...currentLogs, nextLog]
+    })
   }
 
   function selectDate(date: string) {
     setSelectedDate(date)
-    const nextLog = logs.find((log) => log.date === date) || makeBlankLog(date)
-    const hasPlan = MOCK_PLANS.some((plan) => plan.date === date)
-    setCalendarMode(hasPlan || date >= todayKey ? 'plan' : 'actual')
+    const nextPlan = MOCK_PLANS.find((plan) => plan.date === date)
+    const nextLog = logs.find((log) => log.date === date) || makeBlankLog(date, nextPlan)
     setActiveMealId(nextLog.meals[0]?.id || `${date}-meal-1`)
     setActiveExerciseName(nextLog.training[0]?.name || 'Bench Press')
   }
@@ -363,6 +425,17 @@ export default function CalendarLogPage() {
     }
     updateSelectedLog((log) => ({ ...log, training: [...log.training, nextExercise] }))
     setActiveExerciseName(nextExercise.name)
+  }
+
+  function completeExercise(exerciseName: string) {
+    updateSelectedLog((log) => ({
+      ...log,
+      training: log.training.map((exercise) =>
+        exercise.name === exerciseName
+          ? { ...exercise, sets: exercise.sets.map((set) => ({ ...set, done: true })) }
+          : exercise
+      ),
+    }))
   }
 
   return (
@@ -442,30 +515,19 @@ export default function CalendarLogPage() {
           </div>
         </section>
 
-        <section style={styles.daySummaryCard}>
-          <div>
-            <p style={styles.kicker}>SELECTED DAY</p>
-            <h2 style={styles.selectedDate}>{selectedDate}</h2>
-          </div>
-          <div style={styles.summaryPills}>
-            <StatusPill>{savedMeals}/{selectedLog.meals.length} meals</StatusPill>
-            <StatusPill>{doneSets}/{totalSets || 0} sets</StatusPill>
-          </div>
-        </section>
-
-        <SegmentedControl
-          items={calendarModeItems}
-          value={renderedCalendarMode}
-          onChange={setCalendarMode}
-          ariaLabel="予定と実績"
-          getLabel={(mode) => (mode === 'plan' ? '予定' : '実績')}
-          style={styles.modeSwitch}
-        />
-
-        {renderedCalendarMode === 'plan' ? (
+        {isFutureDate ? (
           <PlanSchedulePanel plan={selectedPlan} nextPlan={nextPlan} selectedDate={selectedDate} />
+        ) : isToday ? (
+          <TodayInputPanel plan={selectedPlan} savedMeals={savedMeals} totalMeals={selectedLog.meals.length} doneSets={doneSets} totalSets={totalSets} />
         ) : (
           <>
+            <BodyHydrationEditor
+              bodyWeight={selectedLog.bodyWeight}
+              waterLiters={selectedLog.waterLiters}
+              onBodyWeightChange={(bodyWeight) => updateSelectedLog((log) => ({ ...log, bodyWeight }))}
+              onWaterChange={(waterLiters) => updateSelectedLog((log) => ({ ...log, waterLiters }))}
+            />
+
             <SegmentedControl
               items={VIEW_MODES}
               value={viewMode}
@@ -494,6 +556,7 @@ export default function CalendarLogPage() {
                 onAddExercise={addExercise}
                 onAddSet={addTrainingSet}
                 onUpdateSet={updateTrainingSet}
+                onCompleteExercise={completeExercise}
               />
             )}
 
@@ -510,6 +573,129 @@ export default function CalendarLogPage() {
         )}
       </AppMain>
     </AppShell>
+  )
+}
+
+function TodayInputPanel({
+  plan,
+  savedMeals,
+  totalMeals,
+  doneSets,
+  totalSets,
+}: {
+  plan?: DailyPlan
+  savedMeals: number
+  totalMeals: number
+  doneSets: number
+  totalSets: number
+}) {
+  const nutritionTotals = plan?.meals.reduce(
+    (sum, meal) => ({
+      calories: sum.calories + meal.calories,
+      protein: sum.protein + meal.protein,
+      fat: sum.fat + meal.fat,
+      carbs: sum.carbs + meal.carbs,
+    }),
+    { calories: 0, protein: 0, fat: 0, carbs: 0 }
+  )
+
+  return (
+    <section style={styles.todayInputCard}>
+      <div style={styles.planFocusHeader}>
+        <div>
+          <p style={styles.kicker}>TODAY INPUT</p>
+          <h2 style={styles.planFocusTitle}>今日の入力</h2>
+        </div>
+        <StatusPill>{savedMeals}/{totalMeals} meals</StatusPill>
+      </div>
+
+      {nutritionTotals ? (
+        <div style={styles.planNutritionCard}>
+          <div style={styles.planNutritionTop}>
+            <span style={styles.planItemLabel}>PLANNED NUTRITION</span>
+            <strong style={styles.planCalories}>{nutritionTotals.calories} kcal</strong>
+          </div>
+          <div style={styles.planMacroGrid}>
+            {MACRO_FIELDS.map((field) => (
+              <span key={field.key} style={styles.planMacroItem}>
+                <span style={{ ...styles.planMacroDot, background: field.color }} />
+                {field.shortLabel} {nutritionTotals[field.key]}g
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div style={styles.todayInputGrid}>
+        <section style={styles.todayInputItem}>
+          <span style={{ ...styles.planRail, background: COLORS.primary }} />
+          <span style={styles.planItemLabel}>TRAINING</span>
+          <strong style={styles.planItemTitle}>トレーニングを記録</strong>
+          <span style={styles.planItemDetail}>{doneSets}/{totalSets || 0} sets complete</span>
+          <ActionButton to="/workout" variant="primary" size="sm">開く</ActionButton>
+        </section>
+        <section style={styles.todayInputItem}>
+          <span style={{ ...styles.planRail, background: COLORS.primarySoft }} />
+          <span style={styles.planItemLabel}>MEAL</span>
+          <strong style={styles.planItemTitle}>食事を入力</strong>
+          <span style={styles.planItemDetail}>{savedMeals}/{totalMeals} meals saved</span>
+          <ActionButton to="/meal" variant="primary" size="sm">開く</ActionButton>
+        </section>
+      </div>
+    </section>
+  )
+}
+
+function BodyHydrationEditor({
+  bodyWeight,
+  waterLiters,
+  onBodyWeightChange,
+  onWaterChange,
+}: {
+  bodyWeight: number
+  waterLiters: number
+  onBodyWeightChange: (value: number) => void
+  onWaterChange: (value: number) => void
+}) {
+  return (
+    <section style={styles.bodyHydrationCard}>
+      <div>
+        <p style={styles.kicker}>BODY CHECK</p>
+        <h2 style={styles.editorTitle}>体重と水分</h2>
+      </div>
+      <div style={styles.bodyHydrationGrid}>
+        <label style={styles.compactInputWrap}>
+          <span style={styles.inputLabel}>体重</span>
+          <span style={styles.compactInputRow}>
+            <input
+              value={bodyWeight || ''}
+              onChange={(event) => onBodyWeightChange(readNumericInput(event.target.value))}
+              inputMode="decimal"
+              aria-label="体重 kg"
+              style={styles.compactNumberInput}
+            />
+            <span style={styles.inputUnit}>kg</span>
+          </span>
+        </label>
+        <label style={styles.compactInputWrap}>
+          <span style={styles.inputLabel}>水分</span>
+          <span style={styles.compactInputRow}>
+            <input
+              value={waterLiters || ''}
+              onChange={(event) => onWaterChange(readNumericInput(event.target.value))}
+              inputMode="decimal"
+              aria-label="水分 L"
+              style={styles.compactNumberInput}
+            />
+            <span style={styles.inputUnit}>L</span>
+          </span>
+        </label>
+      </div>
+      <div style={styles.waterQuickActions}>
+        <button type="button" onClick={() => onWaterChange(Math.round((waterLiters + 0.25) * 100) / 100)} style={styles.quickWaterButton}>+250ml</button>
+        <button type="button" onClick={() => onWaterChange(Math.round((waterLiters + 0.5) * 100) / 100)} style={styles.quickWaterButton}>+500ml</button>
+      </div>
+    </section>
   )
 }
 
@@ -639,6 +825,32 @@ function PlanSchedulePanel({
 }) {
   const visiblePlan = plan || nextPlan
   const isSelectedPlan = Boolean(plan)
+  const nutritionTotals = visiblePlan?.meals.reduce(
+    (sum, meal) => ({
+      calories: sum.calories + meal.calories,
+      protein: sum.protein + meal.protein,
+      fat: sum.fat + meal.fat,
+      carbs: sum.carbs + meal.carbs,
+    }),
+    { calories: 0, protein: 0, fat: 0, carbs: 0 }
+  )
+  const macroTotal = nutritionTotals
+    ? nutritionTotals.protein + nutritionTotals.fat + nutritionTotals.carbs
+    : 0
+
+  if (!visiblePlan) {
+    return (
+      <section style={styles.planFocusCard}>
+        <div style={styles.planFocusHeader}>
+          <div>
+            <p style={styles.kicker}>DAY PLAN</p>
+            <h2 style={styles.planFocusTitle}>{selectedDate}</h2>
+          </div>
+          <StatusPill>予定なし</StatusPill>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section style={styles.planFocusCard}>
@@ -650,9 +862,31 @@ function PlanSchedulePanel({
         <StatusPill>{isSelectedPlan ? visiblePlan?.label || 'Plan' : 'Upcoming'}</StatusPill>
       </div>
 
-      {visiblePlan ? (
-        <>
-          <div style={styles.planGrid}>
+      <>
+        {nutritionTotals ? (
+            <div style={styles.planNutritionCard}>
+              <div style={styles.planNutritionTop}>
+                <span style={styles.planItemLabel}>DAILY NUTRITION</span>
+                <strong style={styles.planCalories}>{nutritionTotals.calories} kcal</strong>
+              </div>
+              <div style={styles.planMacroBar} aria-hidden="true">
+                {MACRO_FIELDS.map((field) => {
+                  const value = nutritionTotals[field.key]
+                  const width = macroTotal > 0 ? (value / macroTotal) * 100 : 0
+                  return <span key={field.key} style={{ ...styles.planMacroBarSegment, width: `${width}%`, background: field.color }} />
+                })}
+              </div>
+              <div style={styles.planMacroGrid}>
+                {MACRO_FIELDS.map((field) => (
+                  <span key={field.key} style={styles.planMacroItem}>
+                    <span style={{ ...styles.planMacroDot, background: field.color }} />
+                    {field.shortLabel} {nutritionTotals[field.key]}g
+                  </span>
+                ))}
+              </div>
+            </div>
+        ) : null}
+        <div style={styles.planGrid}>
             <div style={styles.planItem}>
               <span style={{ ...styles.planRail, background: COLORS.primary }} />
               <span style={styles.planItemLabel}>TRAINING</span>
@@ -683,25 +917,8 @@ function PlanSchedulePanel({
                 ))}
               </div>
             </div>
-          </div>
-          <div style={styles.planActionGrid}>
-            <ActionButton to="/chat">予定を相談</ActionButton>
-            <ActionButton variant="primary" onClick={() => undefined}>この予定で進める</ActionButton>
-          </div>
-          <div style={styles.planChecklist}>
-            <div style={styles.planChecklistRow}>
-              <span style={{ ...styles.planChecklistDot, background: COLORS.primary }} />
-              <span>トレーニング開始は今日タブのCTAから行う</span>
-            </div>
-            <div style={styles.planChecklistRow}>
-              <span style={{ ...styles.planChecklistDot, background: COLORS.primarySoft }} />
-              <span>実施後は上の切替で実績に戻して入力する</span>
-            </div>
-          </div>
-        </>
-      ) : (
-        <p style={styles.emptyText}>この月の予定はまだありません。</p>
-      )}
+        </div>
+      </>
     </section>
   )
 }
@@ -713,6 +930,7 @@ function TrainingRetroEditor({
   onAddExercise,
   onAddSet,
   onUpdateSet,
+  onCompleteExercise,
 }: {
   exercises: TrainingExerciseDraft[]
   activeExercise?: TrainingExerciseDraft
@@ -720,6 +938,7 @@ function TrainingRetroEditor({
   onAddExercise: () => void
   onAddSet: () => void
   onUpdateSet: (exerciseName: string, setNumber: number, updater: (set: TrainingSetDraft) => TrainingSetDraft) => void
+  onCompleteExercise: (exerciseName: string) => void
 }) {
   if (!activeExercise) {
     return (
@@ -756,6 +975,9 @@ function TrainingRetroEditor({
               </button>
             )
           })}
+        </div>
+        <div style={styles.addExerciseAction}>
+          <ActionButton onClick={onAddExercise}>＋ 種目を追加</ActionButton>
         </div>
       </section>
 
@@ -812,7 +1034,7 @@ function TrainingRetroEditor({
 
         <div style={styles.editorActions}>
           <ActionButton onClick={onAddSet}>＋ Set</ActionButton>
-          <ActionButton variant="primary" onClick={() => activeExercise.sets.forEach((set) => onUpdateSet(activeExercise.name, set.set, (item) => ({ ...item, done: true })))}>
+          <ActionButton variant="primary" onClick={() => onCompleteExercise(activeExercise.name)}>
             Complete
           </ActionButton>
         </div>
@@ -931,6 +1153,14 @@ const styles: { [key: string]: CSSProperties } = {
     border: `1px solid ${COLORS.borderStrong}`,
     boxShadow: '0 18px 42px rgba(0,0,0,0.28)',
   },
+  todayInputCard: {
+    marginTop: 14,
+    padding: 16,
+    borderRadius: 22,
+    background: COLORS.surfaceRaised,
+    border: `1px solid ${COLORS.borderStrong}`,
+    boxShadow: '0 18px 42px rgba(0,0,0,0.28)',
+  },
   planFocusHeader: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -944,6 +1174,61 @@ const styles: { [key: string]: CSSProperties } = {
     fontSize: 22,
     lineHeight: 1.1,
     letterSpacing: 0,
+  },
+  planNutritionCard: {
+    padding: 12,
+    borderRadius: 18,
+    background: COLORS.surface,
+    border: `1px solid ${COLORS.border}`,
+    marginBottom: 10,
+  },
+  planNutritionTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: 10,
+  },
+  planCalories: {
+    color: COLORS.textPrimary,
+    fontSize: 22,
+    lineHeight: 1,
+    fontWeight: 900,
+    letterSpacing: 0,
+  },
+  planMacroBar: {
+    height: 8,
+    marginTop: 10,
+    borderRadius: 999,
+    background: COLORS.surfaceMuted,
+    overflow: 'hidden',
+    display: 'flex',
+  },
+  planMacroBarSegment: {
+    height: '100%',
+    display: 'block',
+  },
+  planMacroGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: 6,
+    marginTop: 10,
+  },
+  planMacroItem: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    minWidth: 0,
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: 900,
+    whiteSpace: 'nowrap',
+  },
+  planMacroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    flex: '0 0 auto',
   },
   planGrid: {
     display: 'grid',
@@ -1010,59 +1295,22 @@ const styles: { [key: string]: CSSProperties } = {
     fontWeight: 900,
     whiteSpace: 'nowrap',
   },
-  planActionGrid: {
+  todayInputGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     gap: 10,
-    marginTop: 12,
+    marginTop: 10,
   },
-  planChecklist: {
-    display: 'grid',
-    gap: 8,
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 16,
+  todayInputItem: {
+    position: 'relative',
+    minWidth: 0,
+    padding: '12px 11px 12px 13px',
+    borderRadius: 18,
     background: COLORS.surface,
     border: `1px solid ${COLORS.border}`,
-  },
-  planChecklistRow: {
-    display: 'flex',
-    alignItems: 'center',
+    display: 'grid',
     gap: 8,
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    lineHeight: 1.35,
-    fontWeight: 800,
-  },
-  planChecklistDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 999,
-    flex: '0 0 auto',
-  },
-  daySummaryCard: {
-    marginTop: 14,
-    padding: 16,
-    borderRadius: 20,
-    background: COLORS.surface,
-    border: `1px solid ${COLORS.borderStrong}`,
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 12,
-    alignItems: 'center',
-  },
-  selectedDate: {
-    margin: '4px 0 0',
-    color: COLORS.textPrimary,
-    fontSize: 22,
-    lineHeight: 1.1,
-    letterSpacing: 0,
-  },
-  summaryPills: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-    alignItems: 'flex-end',
+    overflow: 'hidden',
   },
   modeSwitch: {
     marginTop: 14,
@@ -1183,6 +1431,60 @@ const styles: { [key: string]: CSSProperties } = {
     background: COLORS.surfaceRaised,
     border: `1px solid ${COLORS.borderStrong}`,
   },
+  bodyHydrationCard: {
+    marginTop: 14,
+    padding: 16,
+    borderRadius: 22,
+    background: COLORS.surfaceRaised,
+    border: `1px solid ${COLORS.borderStrong}`,
+    display: 'grid',
+    gap: 12,
+  },
+  bodyHydrationGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 10,
+  },
+  compactInputWrap: {
+    display: 'grid',
+    gap: 8,
+    padding: 12,
+    borderRadius: 16,
+    background: COLORS.surface,
+    border: `1px solid ${COLORS.borderStrong}`,
+  },
+  compactInputRow: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 5,
+  },
+  compactNumberInput: {
+    minWidth: 0,
+    width: '100%',
+    border: 0,
+    background: 'transparent',
+    color: COLORS.textPrimary,
+    fontSize: 24,
+    lineHeight: 1,
+    fontWeight: 900,
+    outline: 'none',
+    fontFamily: 'inherit',
+  },
+  waterQuickActions: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 8,
+  },
+  quickWaterButton: {
+    height: 34,
+    border: `1px solid ${COLORS.borderStrong}`,
+    borderRadius: 999,
+    background: COLORS.surface,
+    color: COLORS.textPrimary,
+    fontSize: 12,
+    fontWeight: 900,
+    fontFamily: 'inherit',
+  },
   editorHeader: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -1282,6 +1584,10 @@ const styles: { [key: string]: CSSProperties } = {
   exerciseStack: {
     display: 'grid',
     gap: 10,
+  },
+  addExerciseAction: {
+    marginTop: 10,
+    display: 'grid',
   },
   exerciseCard: {
     width: '100%',

@@ -190,7 +190,7 @@ export default function HealthAssistantChat() {
       {
         id: Date.now(),
         role: 'assistant',
-        text: `${target.analysis.mealName}を食事ログに追加しました。今日の摂取量に${target.analysis.calories}kcalを反映しています。`,
+        text: `${target.analysis.mealName}をデモ食事ログに反映しました。本実装では今日の食事データへ${target.analysis.calories}kcalを保存します。`,
         time: formatMessageTime(),
       },
     ]);
@@ -209,7 +209,7 @@ export default function HealthAssistantChat() {
       {
         id: Date.now(),
         role: 'assistant',
-        text: `${target.analysis.exercise} ${target.analysis.setLabel}を記録しました。${target.analysis.restMinutes}分休んだら、${target.analysis.nextSuggestion}に進みましょう。`,
+        text: `${target.analysis.exercise} ${target.analysis.setLabel}をデモ反映しました。${target.analysis.restMinutes}分休んだら、${target.analysis.nextSuggestion}に進みましょう。`,
         time: formatMessageTime(),
       },
     ]);
@@ -228,7 +228,7 @@ export default function HealthAssistantChat() {
       {
         id: Date.now(),
         role: 'assistant',
-        text: `${target.analysis.goalLabel}を計画に追加しました。まずは${target.analysis.weeklyFocus}として、今日から「${target.analysis.dailyAction}」を実行タスクに置きます。`,
+        text: `${target.analysis.goalLabel}をデモ計画に反映しました。まずは${target.analysis.weeklyFocus}として、今日から「${target.analysis.dailyAction}」を実行タスクに置きます。`,
         time: formatMessageTime(),
       },
     ]);
@@ -982,7 +982,7 @@ function makeGoalPlanAnalysis(text: string, id: number): GoalPlanAnalysis | null
       baseline: '現在 67.5kg × 8 から推定',
       target: `${targetWeight}kg single`,
       weeklyFocus: '週2回のベンチ練習とPush Dayの漸進',
-      dailyAction: '次回Bench Pressを予定どおり記録し、RPEと失敗回数を残す',
+      dailyAction: '次回Bench Pressのactual重量・actual回数・未達理由メモを残す',
       phases: ['フォーム固定', 'ボリューム増加', '高重量慣れ', 'ピーキング'],
       checkpoints: ['毎週: 推定1RM更新', '4週ごと: デロード判定', '最終4週: シングル練習'],
       added: false,
@@ -1264,7 +1264,7 @@ function ActivePlanStrip({ onStartPlanning }: { onStartPlanning: () => void }) {
       <div style={styles.activePlanMain}>
         <span style={styles.workoutMeta}>ACTIVE PLAN</span>
         <strong style={styles.activePlanTitle}>ベンチプレス100kg</strong>
-        <span style={styles.workoutHint}>今日: Bench Pressの実績とRPEを残す</span>
+        <span style={styles.workoutHint}>今日: Bench Pressのactual重量・回数・メモを残す</span>
       </div>
       <button type="button" style={styles.activePlanButton} onClick={onStartPlanning}>
         相談
@@ -1583,8 +1583,8 @@ function MealMenuPlanCard() {
 
 function AdjustmentPolicyCard() {
   const rules = [
-    '予定達成 + RPE 8以下: 次回は予定通り',
-    '予定達成 + RPE 9以上: 次回重量は据え置き',
+    '予定達成 + 予定休憩内で完了: 次回は予定通り',
+    '予定達成 + 休憩延長または重いメモ: 次回重量は据え置き',
     '予定未達: 次回メイン種目を-2.5kg',
     '予定日にできない: 今日へ移動 / 次回に統合 / スキップを選択',
   ];

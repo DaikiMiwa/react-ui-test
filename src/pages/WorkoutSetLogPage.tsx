@@ -16,7 +16,6 @@ const INACTIVE_SET_COLOR = COLORS.inactive;
 const EXERCISE_TABS = ['Sets', 'History'] as const;
 
 type ActualField = 'actualWeight' | 'actualReps';
-type PlanField = 'planWeight' | 'planReps';
 
 type SetItem = {
   set: number;
@@ -25,6 +24,7 @@ type SetItem = {
   actualWeight: number | null;
   actualReps: number | null;
   done: boolean;
+  skipped?: boolean;
   note: string;
 };
 
@@ -52,16 +52,31 @@ function createSetItem(set: number, planWeight: number, planReps: number): SetIt
   };
 }
 
-function completeSetItem(set: SetItem): SetItem {
-  if (set.done) return set;
-
-  return {
-    ...set,
-    actualWeight: set.actualWeight ?? set.planWeight,
-    actualReps: set.actualReps ?? set.planReps,
-    done: true,
-  };
+function skipSetItem(set: SetItem): SetItem {
+  if (set.done || set.skipped) return set;
+  return { ...set, skipped: true };
 }
+
+const EXERCISE_LIBRARY: Exercise[] = [
+  {
+    name: 'Shoulder Press',
+    target: 'Shoulders',
+    previous: '前回 32kg × 10 · 3 sets',
+    sets: [createSetItem(1, 32, 10), createSetItem(2, 32, 10), createSetItem(3, 30, 12)],
+  },
+  {
+    name: 'Lateral Raise',
+    target: 'Side Delts',
+    previous: '前回 10kg × 15 · 3 sets',
+    sets: [createSetItem(1, 10, 15), createSetItem(2, 10, 15), createSetItem(3, 8, 18)],
+  },
+  {
+    name: 'Triceps Pushdown',
+    target: 'Triceps',
+    previous: '前回 22kg × 12 · 3 sets',
+    sets: [createSetItem(1, 22, 12), createSetItem(2, 22, 12), createSetItem(3, 20, 15)],
+  },
+];
 
 export default function WorkoutSetLogPage() {
   const [screen, setScreen] = useState<'list' | 'active'>('list');
@@ -78,6 +93,8 @@ export default function WorkoutSetLogPage() {
   const [nextReadySet, setNextReadySet] = useState<number | null>(null);
   const [restSeconds, setRestSeconds] = useState(0);
   const [pendingExerciseName, setPendingExerciseName] = useState<string | null>(null);
+  const [showExercisePicker, setShowExercisePicker] = useState(false);
+  const [showFinishSummary, setShowFinishSummary] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([
     {
       name: 'Bench Press',
@@ -123,6 +140,13 @@ export default function WorkoutSetLogPage() {
   const activeExerciseIsIncomplete = isExerciseStarted && activeExercise.sets.some((set) => !set.done);
   const totalDone = exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => set.done).length, 0);
   const totalSets = exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+  const unfinishedSets = exercises.reduce(
+    (sum, exercise) => sum + exercise.sets.filter((set) => !set.done && !set.skipped).length,
+    0
+  );
+  const availableLibraryExercises = EXERCISE_LIBRARY.filter(
+    (libraryExercise) => !exercises.some((exercise) => exercise.name === libraryExercise.name)
+  );
 
   useEffect(() => {
     if (restingAfterSet == null || restSeconds <= 0) return;
@@ -189,7 +213,7 @@ export default function WorkoutSetLogPage() {
     setExerciseTab('Sets');
     resetInteractionState();
     const exercise = exercises.find((item) => item.name === exerciseName);
-    const firstOpen = exercise?.sets.find((set) => !set.done)?.set || 1;
+    const firstOpen = exercise?.sets.find((set) => !set.done && !set.skipped)?.set || 1;
     setOpenSet(firstOpen);
   }
 
@@ -201,8 +225,8 @@ export default function WorkoutSetLogPage() {
         exercise.name === exerciseName
           ? {
               ...exercise,
-              warmupSets: exercise.warmupSets?.map(completeSetItem),
-              sets: exercise.sets.map(completeSetItem),
+              warmupSets: exercise.warmupSets?.map((set) => (set.done ? set : skipSetItem(set))),
+              sets: exercise.sets.map((set) => (set.done ? set : skipSetItem(set))),
             }
           : exercise
       )
@@ -231,9 +255,9 @@ export default function WorkoutSetLogPage() {
     setEditingWarmupIndex(hasWarmups ? -1 : null);
     setActiveWarmupIndexByExercise((current) => ({
       ...current,
-      [activeExerciseName]: Math.max(0, activeExercise.warmupSets?.findIndex((set) => !set.done) ?? 0),
+      [activeExerciseName]: Math.max(0, activeExercise.warmupSets?.findIndex((set) => !set.done && !set.skipped) ?? 0),
     }));
-    const firstOpen = activeExercise.sets.find((set) => !set.done)?.set || 1;
+    const firstOpen = activeExercise.sets.find((set) => !set.done && !set.skipped)?.set || 1;
     setOpenSet(firstOpen);
     resetInteractionState({ keepWarmupEditor: hasWarmups });
   }
@@ -248,6 +272,7 @@ export default function WorkoutSetLogPage() {
       actualWeight: set.actualWeight ?? set.planWeight,
       actualReps: set.actualReps ?? set.planReps,
       done: true,
+      skipped: false,
     }));
 
     setActiveWarmupIndexByExercise((current) => ({
@@ -256,7 +281,7 @@ export default function WorkoutSetLogPage() {
     }));
 
     if (targetIndex + 1 >= warmupSets.length) {
-      const firstOpen = activeExercise.sets.find((set) => !set.done)?.set || 1;
+      const firstOpen = activeExercise.sets.find((set) => !set.done && !set.skipped)?.set || 1;
       setOpenSet(firstOpen);
       setEditingWarmupIndex(null);
     }
@@ -273,10 +298,11 @@ export default function WorkoutSetLogPage() {
       actualWeight: nextDone ? set.actualWeight ?? set.planWeight : set.actualWeight,
       actualReps: nextDone ? set.actualReps ?? set.planReps : set.actualReps,
       done: nextDone,
+      skipped: nextDone ? false : set.skipped,
     }));
 
     if (nextDone) {
-      const nextOpenIndex = warmupSets.findIndex((set, index) => index !== targetIndex && !set.done);
+      const nextOpenIndex = warmupSets.findIndex((set, index) => index !== targetIndex && !set.done && !set.skipped);
       setActiveWarmupIndexByExercise((current) => ({
         ...current,
         [activeExerciseName]: nextOpenIndex === -1 ? warmupSets.length : nextOpenIndex,
@@ -298,6 +324,10 @@ export default function WorkoutSetLogPage() {
   }
 
   function skipWarmup() {
+    updateActiveExercise((exercise) => ({
+      ...exercise,
+      warmupSets: exercise.warmupSets?.map((set) => (set.done ? set : skipSetItem(set))),
+    }));
     setActiveWarmupIndexByExercise((current) => ({
       ...current,
       [activeExerciseName]: activeExercise.warmupSets?.length || 0,
@@ -322,7 +352,13 @@ export default function WorkoutSetLogPage() {
     const completedSet = activeExercise.sets.find((set) => set.set === setNumber);
     if (!completedSet) return;
 
-    updateMainSet(setNumber, (set) => ({ ...set, actualWeight: set.planWeight, actualReps: set.planReps, done: true }));
+    updateMainSet(setNumber, (set) => ({
+      ...set,
+      actualWeight: set.actualWeight ?? set.planWeight,
+      actualReps: set.actualReps ?? set.planReps,
+      done: true,
+      skipped: false,
+    }));
     setLoggingSet(null);
     setEditingWarmupIndex(null);
     setEditingActualSet(null);
@@ -363,10 +399,6 @@ export default function WorkoutSetLogPage() {
     updateMainSet(setNumber, (set) => ({ ...set, [field]: value }));
   }
 
-  function updateSetPlan(setNumber: number, field: PlanField, value: number) {
-    updateMainSet(setNumber, (set) => ({ ...set, [field]: value }));
-  }
-
   function addSet() {
     const lastSet = activeExercise.sets[activeExercise.sets.length - 1];
     const nextSetNumber = (lastSet?.set || 0) + 1;
@@ -381,6 +413,21 @@ export default function WorkoutSetLogPage() {
     resetInteractionState();
     setOpenSet(nextSetNumber);
     setLoggingSet(nextSetNumber);
+  }
+
+  function addExerciseFromLibrary(exercise: Exercise) {
+    setExercises((currentExercises) => [...currentExercises, exercise]);
+    setShowExercisePicker(false);
+    setActiveExerciseName(exercise.name);
+    setScreen('active');
+    setExerciseTab('Sets');
+    resetInteractionState();
+    setOpenSet(exercise.sets.find((set) => !set.done && !set.skipped)?.set || 1);
+  }
+
+  function saveWorkoutSummary() {
+    // Demo UI: future API payload is represented by current state and confirmation copy.
+    setShowFinishSummary(false);
   }
 
   function editWarmup(index: number) {
@@ -415,6 +462,8 @@ export default function WorkoutSetLogPage() {
           activeExerciseName={activeExerciseName}
           onBack={goBackFromWorkout}
           onActivate={requestExerciseActivation}
+          onOpenExercisePicker={() => setShowExercisePicker(true)}
+          onOpenFinishSummary={() => setShowFinishSummary(true)}
         />
       ) : (
         <ActiveExerciseScreen
@@ -440,7 +489,6 @@ export default function WorkoutSetLogPage() {
           onStartLogging={startLogging}
           onCancelLogging={() => setLoggingSet(null)}
           onAddSet={addSet}
-          onUpdatePlan={updateSetPlan}
           onEditWarmup={editWarmup}
           onStopWarmupEdit={stopWarmupEdit}
           onUpdateWarmupActual={updateWarmupActual}
@@ -479,6 +527,22 @@ export default function WorkoutSetLogPage() {
           onCompleteAndOpen={completeCurrentExerciseAndOpenPending}
         />
       ) : null}
+      {showExercisePicker ? (
+        <ExercisePickerDialog
+          exercises={availableLibraryExercises}
+          onAdd={addExerciseFromLibrary}
+          onClose={() => setShowExercisePicker(false)}
+        />
+      ) : null}
+      {showFinishSummary ? (
+        <FinishWorkoutDialog
+          totalDone={totalDone}
+          totalSets={totalSets}
+          unfinishedSets={unfinishedSets}
+          onSave={saveWorkoutSummary}
+          onClose={() => setShowFinishSummary(false)}
+        />
+      ) : null}
     </AppShell>
   );
 }
@@ -515,13 +579,24 @@ function CountPill({
   );
 }
 
-function ExerciseListScreen({ exercises, totalDone, totalSets, onBack, onActivate, activeExerciseName }:{
+function ExerciseListScreen({
+  exercises,
+  totalDone,
+  totalSets,
+  onBack,
+  onActivate,
+  activeExerciseName,
+  onOpenExercisePicker,
+  onOpenFinishSummary,
+}:{
   exercises: Exercise[];
   totalDone: number;
   totalSets: number;
   activeExerciseName: string;
   onBack: () => void;
   onActivate: (exerciseName: string) => void;
+  onOpenExercisePicker: () => void;
+  onOpenFinishSummary: () => void;
 }) {
   return (
     <>
@@ -546,8 +621,8 @@ function ExerciseListScreen({ exercises, totalDone, totalSets, onBack, onActivat
         ))}
 
         <BottomActionBar>
-          <ActionButton variant="ghost">＋ Exercise</ActionButton>
-          <ActionButton variant="primary">Finish Workout</ActionButton>
+          <ActionButton variant="ghost" onClick={onOpenExercisePicker}>＋ Exercise</ActionButton>
+          <ActionButton variant="primary" onClick={onOpenFinishSummary}>Finish Workout</ActionButton>
         </BottomActionBar>
       </AppMain>
     </>
@@ -560,7 +635,7 @@ function ExerciseListCard({ exercise, isActive, onActivate }:{
   onActivate: () => void;
 }) {
   const doneCount = exercise.sets.filter((set) => set.done).length;
-  const complete = doneCount === exercise.sets.length;
+  const complete = exercise.sets.every((set) => set.done || set.skipped);
   const statusColor = complete ? COLORS.success : isActive ? ACTIVE_SET_COLOR : COLORS.textSecondary;
   const statusBadgeText = `${doneCount}/${exercise.sets.length}`;
   const buttonLabel = 'Open';
@@ -634,21 +709,79 @@ function ExerciseSwitchModal({
       title={`${currentExerciseName} is still open`}
       labelledBy="exercise-switch-title"
       actions={[
-        { label: 'Complete & Open', onClick: onCompleteAndOpen, variant: 'primary' },
+        { label: 'Skip Rest & Open', onClick: onCompleteAndOpen, variant: 'primary' },
         { label: 'Open Anyway', onClick: onOpenAnyway, variant: 'secondary' },
         { label: 'Stay', onClick: onStay, variant: 'ghost' },
       ]}
     >
-      {nextExerciseName} を開きますか？未完了セットを残したまま移動するか、予定値で完了扱いにして移動できます。
+      {nextExerciseName} を開きますか？未完了セットを残したまま移動するか、未完了分を skipped として残して移動できます。
+    </ConfirmDialog>
+  );
+}
+
+function ExercisePickerDialog({
+  exercises,
+  onAdd,
+  onClose,
+}: {
+  exercises: Exercise[];
+  onAdd: (exercise: Exercise) => void;
+  onClose: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      eyebrow="EXERCISE LIBRARY"
+      title="Add an exercise"
+      actions={[{ label: 'Close', onClick: onClose, variant: 'ghost' }]}
+    >
+      <div style={styles.dialogStack}>
+        {exercises.length > 0 ? (
+          exercises.map((exercise) => (
+            <button key={exercise.name} type="button" onClick={() => onAdd(exercise)} style={styles.dialogOption}>
+              <span style={styles.dialogOptionTitle}>{exercise.name}</span>
+              <span style={styles.dialogOptionMeta}>{exercise.target} · {exercise.sets.length} sets</span>
+            </button>
+          ))
+        ) : (
+          <span style={styles.dialogEmpty}>追加できる既存種目はありません。</span>
+        )}
+      </div>
+    </ConfirmDialog>
+  );
+}
+
+function FinishWorkoutDialog({
+  totalDone,
+  totalSets,
+  unfinishedSets,
+  onSave,
+  onClose,
+}: {
+  totalDone: number;
+  totalSets: number;
+  unfinishedSets: number;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      eyebrow="SESSION SAVE"
+      title="Finish Workout"
+      actions={[
+        { label: 'Save Session', onClick: onSave, variant: 'primary' },
+        { label: 'Keep Editing', onClick: onClose, variant: 'ghost' },
+      ]}
+    >
+      {totalDone}/{totalSets} sets done. 未完了セットは {unfinishedSets} 件あります。保存時はplan/actual/done/skipped、休憩、メモ、未完了項目をsession payloadとして保持する想定です。
     </ConfirmDialog>
   );
 }
 
 function PlannedSetChip({ set }: { set: SetItem }) {
   return (
-    <span style={set.done ? styles.plannedSetDone : styles.plannedSet}>
+    <span style={set.done || set.skipped ? styles.plannedSetDone : styles.plannedSet}>
       <span style={styles.plannedSetIndex}>{set.set}</span>
-      <span>{set.planWeight}kg × {set.planReps}</span>
+      <span>{set.skipped ? 'Skipped' : `${set.planWeight}kg × ${set.planReps}`}</span>
     </span>
   );
 }
@@ -679,13 +812,13 @@ function WarmupStatusRow({
         style={isCurrent ? { ...styles.warmupItemButton, color: COLORS.textPrimary } : styles.warmupItemButton}
       >
         <span style={styles.warmupLabel}>Warm-up {index + 1}</span>
-        <span style={styles.warmupValue}>{warmupValue}</span>
+        <span style={styles.warmupValue}>{set.skipped ? 'Skipped' : warmupValue}</span>
         <span
           onClick={(event) => {
             event.stopPropagation();
             onToggle();
           }}
-          style={set.done ? styles.warmupCheckDone : isCurrent ? styles.warmupCheckCurrent : styles.warmupCheck}
+          style={set.done ? styles.warmupCheckDone : set.skipped ? styles.warmupCheckSkipped : isCurrent ? styles.warmupCheckCurrent : styles.warmupCheck}
         >
           ✓
         </span>
@@ -729,7 +862,6 @@ function ActiveExerciseScreen({
   onStartLogging,
   onCancelLogging,
   onAddSet,
-  onUpdatePlan,
   onEditWarmup,
   onStopWarmupEdit,
   onUpdateWarmupActual,
@@ -767,7 +899,6 @@ function ActiveExerciseScreen({
   onStartLogging: (set: number) => void;
   onCancelLogging: () => void;
   onAddSet: () => void;
-  onUpdatePlan: (set: number, field: PlanField, value: number) => void;
   onEditWarmup: (index: number) => void;
   onStopWarmupEdit: () => void;
   onUpdateWarmupActual: (index: number, field: ActualField, value: number) => void;
@@ -788,13 +919,13 @@ function ActiveExerciseScreen({
   const restSet = restingAfterSet != null ? exercise.sets.find((set) => set.set === restingAfterSet) : null;
   const activeLoggingSet = loggingSet != null ? exercise.sets.find((set) => set.set === loggingSet) : null;
   const readySet = nextReadySet != null ? exercise.sets.find((set) => set.set === nextReadySet) : null;
-  const nextSet = exercise.sets.find((set) => set.set === openSet && !set.done) || exercise.sets.find((set) => !set.done);
+  const nextSet = exercise.sets.find((set) => set.set === openSet && !set.done && !set.skipped) || exercise.sets.find((set) => !set.done && !set.skipped);
   const hasWarmupSets = Boolean(exercise.warmupSets?.length);
   const warmupSets = exercise.warmupSets || [];
-  const warmupComplete = hasWarmupSets && warmupSets.every((set) => set.done);
+  const warmupComplete = hasWarmupSets && warmupSets.every((set) => set.done || set.skipped);
   const isWarmupActive = isExerciseStarted && hasWarmupSets && !warmupComplete && activeWarmupIndex < warmupSets.length;
   const focusedSet = isExerciseStarted ? activeLoggingSet || readySet || nextSet : null;
-  const hasEarlierOpenSets = focusedSet ? exercise.sets.some((set) => set.set < focusedSet.set && !set.done) : false;
+  const hasEarlierOpenSets = focusedSet ? exercise.sets.some((set) => set.set < focusedSet.set && !set.done && !set.skipped) : false;
   const formattedRestTime = `${Math.floor(restSeconds / 60).toString().padStart(2, '0')}:${(restSeconds % 60).toString().padStart(2, '0')}`;
   const statusTitle = !isExerciseStarted
     ? 'Ready to activate'
@@ -933,13 +1064,12 @@ function ActiveExerciseScreen({
                     isEditingActual={editingActualSet === set.set}
                     isEditingNote={editingNoteSet === set.set}
                     canEdit={isExerciseStarted && !isWarmupActive}
-                    hasEarlierOpenSets={exercise.sets.some((item) => item.set < set.set && !item.done)}
+                    hasEarlierOpenSets={exercise.sets.some((item) => item.set < set.set && !item.done && !item.skipped)}
                     onStartLogging={() => {
                       onOpenSet(set.set);
                       onStartLogging(set.set);
                     }}
                     onCancelLogging={onCancelLogging}
-                    onUpdatePlan={(field, value) => onUpdatePlan(set.set, field, value)}
                     onStartActualEdit={() => onStartActualEdit(set.set)}
                     onStopActualEdit={onStopActualEdit}
                     onUpdateActual={(field, value) => onUpdateActual(set.set, field, value)}
@@ -1118,7 +1248,10 @@ function WarmupSummaryRow({
   onUpdateActual: (index: number, field: ActualField, value: number) => void;
 }) {
   const doneCount = warmupSets.filter((set) => set.done).length;
-  const actualLabel = doneCount === warmupSets.length ? 'Done' : `${doneCount}/${warmupSets.length} done`;
+  const skippedCount = warmupSets.filter((set) => set.skipped).length;
+  const actualLabel = doneCount + skippedCount === warmupSets.length
+    ? skippedCount > 0 ? `${skippedCount} skipped` : 'Done'
+    : `${doneCount}/${warmupSets.length} done`;
 
   return (
     <div style={styles.setRowWrap}>
@@ -1190,7 +1323,6 @@ function SetRow({
   hasEarlierOpenSets,
   onStartLogging,
   onCancelLogging,
-  onUpdatePlan,
   onStartActualEdit,
   onStopActualEdit,
   onUpdateActual,
@@ -1210,7 +1342,6 @@ function SetRow({
   hasEarlierOpenSets: boolean;
   onStartLogging: () => void;
   onCancelLogging: () => void;
-  onUpdatePlan?: (field: PlanField, value: number) => void;
   onStartActualEdit: () => void;
   onStopActualEdit: () => void;
   onUpdateActual: (field: ActualField, value: number) => void;
@@ -1220,7 +1351,7 @@ function SetRow({
   onCompleteSet: () => void;
 }) {
   const rowColor = isActiveSet ? ACTIVE_SET_COLOR : INACTIVE_SET_COLOR;
-  const hasActualValue = set.done || setLabel === 'W';
+  const hasActualValue = set.done || set.skipped || setLabel === 'W';
   const isExpanded = isLogging || isEditingActual || isEditingNote;
   const handleRowToggle = setLabel === 'W' || set.done ? onStartActualEdit : onStartLogging;
   const handleRowClick = canEdit ? handleRowToggle : undefined;
@@ -1240,7 +1371,7 @@ function SetRow({
         >
           {hasActualValue ? (
             <>
-              <WeightReps weight={set.actualWeight ?? set.planWeight} reps={set.actualReps ?? set.planReps} active={isActiveSet} />
+              {set.skipped ? <span style={styles.emptyTextInactive}>Skipped</span> : <WeightReps weight={set.actualWeight ?? set.planWeight} reps={set.actualReps ?? set.planReps} active={isActiveSet} />}
             </>
           ) : (
             <span style={isActiveSet ? styles.emptyText : styles.emptyTextInactive}>—</span>
@@ -1273,10 +1404,10 @@ function SetRow({
           <PanelHeader label="READY" color={rowColor} actionLabel="Cancel" onAction={onCancelLogging} />
           {hasEarlierOpenSets ? <div style={styles.inlineWarning}>Earlier sets are still open</div> : null}
           <MetricInputs
-            weight={set.planWeight}
-            reps={set.planReps}
-            onWeightChange={(value) => onUpdatePlan?.('planWeight', value)}
-            onRepsChange={(value) => onUpdatePlan?.('planReps', value)}
+            weight={set.actualWeight ?? set.planWeight}
+            reps={set.actualReps ?? set.planReps}
+            onWeightChange={(value) => onUpdateActual('actualWeight', value)}
+            onRepsChange={(value) => onUpdateActual('actualReps', value)}
           />
           <SetNoteInput
             value={set.note}
@@ -1348,6 +1479,7 @@ const styles: { [key: string]: CSSProperties } = {
   warmupCheck: { width: 22, height: 22, borderRadius: 999, background: COLORS.surfaceRaised, color: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900 },
   warmupCheckCurrent: { width: 22, height: 22, borderRadius: 999, background: 'rgba(255,107,44,0.18)', color: ACTIVE_SET_COLOR, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900 },
   warmupCheckDone: { width: 22, height: 22, borderRadius: 999, background: ACTIVE_SET_COLOR, color: COLORS.onPrimary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900 },
+  warmupCheckSkipped: { width: 22, height: 22, borderRadius: 999, background: COLORS.borderStrong, color: COLORS.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900 },
   warmupLabel: { color: COLORS.textSecondary, fontSize: 12, fontWeight: 900, letterSpacing: 0.5, textTransform: 'uppercase' },
   warmupValue: { color: COLORS.textPrimary, fontSize: 15, fontWeight: 900 },
   warmupActions: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
@@ -1470,5 +1602,10 @@ const styles: { [key: string]: CSSProperties } = {
   modalText: { margin: '12px 0 0', color: COLORS.textSecondary, fontSize: 14, lineHeight: 1.45 },
   modalActions: { marginTop: 16, display: 'grid', gap: 10 },
   modalButton: { width: '100%' },
+  dialogStack: { display: 'grid', gap: 8 },
+  dialogOption: { width: '100%', border: `1px solid ${COLORS.borderStrong}`, borderRadius: 16, background: COLORS.surface, color: COLORS.textPrimary, padding: 12, display: 'grid', gap: 4, textAlign: 'left', fontFamily: 'inherit' },
+  dialogOptionTitle: { fontSize: 15, fontWeight: 900 },
+  dialogOptionMeta: { color: COLORS.textSecondary, fontSize: 12, fontWeight: 750 },
+  dialogEmpty: { color: COLORS.textSecondary, fontSize: 14, fontWeight: 750 },
   setRowWrap: {},
 };

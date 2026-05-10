@@ -4,20 +4,32 @@ import { COLORS } from './tokens'
 
 const TABS = [
   { label: '今日', to: '/' },
-  { label: 'カレンダー', to: '/history' },
+  { label: 'カレンダー', to: '/calendar' },
   { label: 'データ', to: '/data-review' },
 ] as const
 
+function getActiveTab(pathname: string) {
+  if (pathname === '/calendar' || pathname === '/history') return '/calendar'
+  if (pathname === '/data-review') return '/data-review'
+  return '/'
+}
+
 export function BottomTabBar() {
   const { pathname } = useLocation()
+  const activeTab = getActiveTab(pathname)
 
   return (
     <nav aria-label="主要ナビゲーション" style={styles.bar}>
       {TABS.map((tab) => {
-        const isActive = pathname === tab.to
+        const isActive = activeTab === tab.to
 
         return (
-          <Link key={tab.to} to={tab.to} style={{ ...styles.item, ...(isActive ? styles.active : undefined) }}>
+          <Link
+            key={tab.to}
+            to={tab.to}
+            aria-current={isActive ? 'page' : undefined}
+            style={{ ...styles.item, ...(isActive ? styles.active : undefined) }}
+          >
             {tab.label}
           </Link>
         )
