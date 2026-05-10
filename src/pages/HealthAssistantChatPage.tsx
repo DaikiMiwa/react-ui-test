@@ -512,6 +512,68 @@ export default function HealthAssistantChat() {
             activeIndex={1}
           />
 
+          <AssistantText>
+            ここからは、記録タブと同じようにAIが止めるべきケースも確認できます。
+          </AssistantText>
+
+          <UserTurn time="19:27">Set 2を飛ばしてSet 3からやっていい？</UserTurn>
+
+          <AssistantText>
+            Set 2がまだ未記録です。順番を飛ばす前に確認します。
+          </AssistantText>
+
+          <TrainingCaseCard
+            title="前セット未完了"
+            status="CHECK"
+            lead="Earlier sets are still open"
+            detail="Set 2が未記録のため、Set 3を開始する前にSet 2の扱いを決めます。"
+            rows={['Set 2 22kg × 10 を記録する', 'Set 3 20kg × 12 を開く', '今のセットに戻る']}
+          />
+
+          <UserTurn time="19:28">休憩を30秒伸ばしたい。</UserTurn>
+
+          <AssistantText>
+            休憩時間を調整します。記録タブと同じく、短縮、延長、終了、停止を選べます。
+          </AssistantText>
+
+          <RestControlCard nextLabel="Incline Set 2 22kg × 10" />
+
+          <UserTurn time="19:31">22kg 6回しかできませんでした。</UserTurn>
+
+          <AssistantText>
+            予定未達として記録します。次セットは重量を下げるか、同重量で回数目標を下げる提案に切り替えます。
+          </AssistantText>
+
+          <TrainingCaseCard
+            title="予定未達の記録"
+            status="ADJUST"
+            lead="Actual 22kg × 6"
+            detail="Workoutページの計画 22kg × 10 に対して未達です。記録は残し、次セットの提案だけ調整します。"
+            rows={['Set 2を22kg × 6で記録', '次は20kg × 10を提案', 'フォームメモを追加']}
+          />
+
+          <UserTurn time="19:34">今日はもう終わりたい。</UserTurn>
+
+          <AssistantText>
+            未完了の種目が残っています。ワークアウトを終了する前に、残りをどう扱うか確認します。
+          </AssistantText>
+
+          <WorkoutFinishGuardCard />
+
+          <UserTurn time="19:36">Cable Flyだけ空いた。順番変えたい。</UserTurn>
+
+          <AssistantText>
+            順番変更できます。ただしIncline Dumbbell Pressが進行中なので、未完了セットを残すか、完了扱いにするか確認してからCable Flyへ移ります。
+          </AssistantText>
+
+          <TrainingCaseCard
+            title="器具都合の順番変更"
+            status="REORDER"
+            lead="Cable Fly available"
+            detail="空き状況に合わせて順番は変えますが、進行中種目の未完了セットは勝手に消しません。"
+            rows={['Inclineを続ける', 'Inclineを未完了のままCable Flyへ', 'Inclineを完了扱いにしてCable Flyへ']}
+          />
+
           <div style={styles.quickActions}>
             <button type="button" onClick={() => setAssistantMode('plan-chat')} style={styles.chip}>目標相談へ</button>
             <button type="button" onClick={() => sendQuickAction('ジム着きました。トレーニング始めます！')} style={styles.chip}>トレ開始</button>
@@ -1039,9 +1101,9 @@ function WeightTrendCard() {
   const chart = { left: 42, right: 248, top: 20, bottom: 102 };
   const yTicks = [78.5, 78.0, 77.5, 77.0];
   const xTicks = [
-    { index: 0, label: 'W1' },
-    { index: 5, label: 'W6' },
-    { index: 11, label: 'W12' },
+    { index: 0, label: '2/17' },
+    { index: 5, label: '3/24' },
+    { index: 11, label: '5/5' },
   ];
   const getX = (index: number) => chart.left + (index / (points.length - 1)) * (chart.right - chart.left);
   const getY = (point: number) => chart.bottom - ((point - min) / (max - min)) * (chart.bottom - chart.top);
@@ -1472,6 +1534,91 @@ function ExerciseSwitchGuardCard({
       </div>
 
       <p style={styles.guardDecision}>{decisionText}</p>
+    </section>
+  );
+}
+
+function TrainingCaseCard({
+  title,
+  status,
+  lead,
+  detail,
+  rows,
+}: {
+  title: string;
+  status: string;
+  lead: string;
+  detail: string;
+  rows: string[];
+}) {
+  return (
+    <section style={styles.guardCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>{title}</span>
+        <span style={styles.guardPill}>{status}</span>
+      </div>
+
+      <div style={styles.guardPanel}>
+        <span style={styles.workoutMeta}>AI GUARD</span>
+        <strong style={styles.guardTitle}>{lead}</strong>
+        <span style={styles.workoutHint}>{detail}</span>
+      </div>
+
+      <div style={styles.guardOpenList}>
+        {rows.map((row) => (
+          <span key={row} style={styles.guardOpenSet}>{row}</span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RestControlCard({ nextLabel }: { nextLabel: string }) {
+  return (
+    <section style={styles.restCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>休憩操作</span>
+        <span style={styles.workoutStatusPill}>REST</span>
+      </div>
+
+      <div style={styles.restPanel}>
+        <span style={styles.workoutMeta}>NEXT</span>
+        <strong style={styles.restValue}>+0:30</strong>
+        <span style={styles.workoutHint}>休憩後は{nextLabel}です。疲労感に合わせて調整できます。</span>
+      </div>
+
+      <div style={styles.guardActions}>
+        <button type="button" style={styles.guardAction}>-30s</button>
+        <button type="button" style={styles.guardActionActive}>+30s</button>
+        <button type="button" style={styles.guardAction}>Done</button>
+        <button type="button" style={styles.guardDangerAction}>Stop</button>
+      </div>
+    </section>
+  );
+}
+
+function WorkoutFinishGuardCard() {
+  return (
+    <section style={styles.guardCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>終了確認</span>
+        <span style={styles.guardPill}>FINISH</span>
+      </div>
+
+      <div style={styles.guardPanel}>
+        <span style={styles.workoutMeta}>WORKOUT INCOMPLETE</span>
+        <strong style={styles.guardTitle}>未完了の種目があります</strong>
+        <span style={styles.workoutHint}>Incline Dumbbell PressとCable Flyに未記録セットがあります。終了前に扱いを選びます。</span>
+      </div>
+
+      <div style={styles.guardActions}>
+        <button type="button" style={styles.guardActionActive}>未完了のまま終了</button>
+        <button type="button" style={styles.guardAction}>残り種目へ戻る</button>
+        <button type="button" style={styles.guardAction}>未完了セットを削除</button>
+      </div>
     </section>
   );
 }
@@ -2505,6 +2652,16 @@ const styles: { [key: string]: CSSProperties } = {
     borderRadius: 999,
     background: COLORS.surfaceMuted,
     color: COLORS.primarySoft,
+    fontSize: 13,
+    fontWeight: 900,
+    fontFamily: 'inherit',
+  },
+  guardDangerAction: {
+    minHeight: 40,
+    border: 0,
+    borderRadius: 999,
+    background: COLORS.danger,
+    color: COLORS.onPrimary,
     fontSize: 13,
     fontWeight: 900,
     fontFamily: 'inherit',

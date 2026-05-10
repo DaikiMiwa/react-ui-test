@@ -235,6 +235,7 @@ export default function HealthDataReviewPage() {
   const [period, setPeriod] = useState<PeriodKey>(12)
   const [activeTab, setActiveTab] = useState<TabKey>('身体指標')
   const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(DEFAULT_DISPLAY_SETTINGS)
+  const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false)
   const [selectedExercises, setSelectedExercises] = useState<string[]>(DEFAULT_SELECTED_EXERCISES)
 
   const visibleBody = useMemo(() => bodyTimeline.slice(-period), [period])
@@ -259,7 +260,20 @@ export default function HealthDataReviewPage() {
         title="データ確認"
         subtitle="身体・食事・トレーニング"
         left={<IconButton to="/" ariaLabel="ホームへ戻る">‹</IconButton>}
-        right={<IconButton ariaLabel="その他の操作"><MoreDots /></IconButton>}
+        right={
+          <button
+            type="button"
+            aria-label="表示設定"
+            aria-expanded={isDisplaySettingsOpen}
+            onClick={() => setIsDisplaySettingsOpen((current) => !current)}
+            style={{
+              ...styles.headerMenuButton,
+              ...(isDisplaySettingsOpen ? styles.headerMenuButtonActive : undefined),
+            }}
+          >
+            <MoreDots />
+          </button>
+        }
       />
         <AppMain withBottomNav style={styles.main}>
           <SegmentedControl
@@ -284,7 +298,9 @@ export default function HealthDataReviewPage() {
               </button>
             ))}
           </section>
-          <DisplaySettingsPanel settings={displaySettings} onToggle={toggleDisplaySetting} />
+          {isDisplaySettingsOpen ? (
+            <DisplaySettingsPanel settings={displaySettings} onToggle={toggleDisplaySetting} />
+          ) : null}
           {activeTab === '身体指標' ? (
             <BodySection
               data={visibleBody}
@@ -315,7 +331,7 @@ function DisplaySettingsPanel({
   onToggle: (key: DisplaySettingKey) => void
 }) {
   return (
-    <div style={styles.displaySettingsWrap}>
+    <div style={styles.displaySettingsPanel}>
       <SurfaceCard>
         <CardHeader>表示設定</CardHeader>
         <div style={styles.checkboxGrid}>
@@ -461,16 +477,7 @@ function NutritionSection({ data, displaySettings }: { data: typeof nutritionTim
   const water = data.map((item) => item.water)
   const latest = data[data.length - 1]
   const avg = Math.round((calories.reduce((sum, item) => sum + item, 0) / calories.length) * 10) / 10
-
-  const totalMacro = data.reduce(
-    (acc, day) => ({
-      protein: acc.protein + day.protein,
-      fat: acc.fat + day.fat,
-      carbs: acc.carbs + day.carbs,
-      water: acc.water + day.water,
-    }),
-    { protein: 0, fat: 0, carbs: 0, water: 0 },
-  )
+  const totalWater = data.reduce((sum, item) => sum + item.water, 0)
 
   return (
     <div style={styles.sectionColumn}>
@@ -505,7 +512,7 @@ function NutritionSection({ data, displaySettings }: { data: typeof nutritionTim
                     unit: 'L',
                     settings: displaySettings,
                   })
-                : `7日合計 ${totalMacro.water.toFixed(1)} L`
+                : `7日合計 ${totalWater.toFixed(1)} L`
             }
             color={COLORS.healthBlue}
           />
@@ -527,56 +534,6 @@ function NutritionSection({ data, displaySettings }: { data: typeof nutritionTim
       </SurfaceCard>
 
       <SurfaceCard>
-        <CardHeader>PFC 時系列（g）</CardHeader>
-        <div style={styles.macroLegend}>
-          <span style={{ ...styles.legendItem, color: COLORS.healthBlue }}>Protein</span>
-          <span style={{ ...styles.legendItem, color: COLORS.healthYellow }}>Fat</span>
-          <span style={{ ...styles.legendItem, color: COLORS.healthGreen }}>Carbs</span>
-        </div>
-        <div style={styles.macroRows}>
-          {data.map((item) => {
-            const total = item.protein + item.fat + item.carbs
-            const proteinWidth = (item.protein / total) * 100
-            const fatWidth = (item.fat / total) * 100
-            const carbWidth = (item.carbs / total) * 100
-
-            return (
-              <div key={item.date} style={styles.macroRow}>
-                <div style={styles.macroDate}>{item.date}</div>
-                <div style={styles.barTrack}>
-                  <div style={{ ...styles.macroSeg, ...styles.proteinSeg, width: `${proteinWidth}%` }} />
-                  <div style={{ ...styles.macroSeg, ...styles.fatSeg, width: `${fatWidth}%` }} />
-                  <div style={{ ...styles.macroSeg, ...styles.carbSeg, width: `${carbWidth}%` }} />
-                </div>
-                <div style={styles.macroMeta}>
-                  <span>P {item.protein}</span>
-                  <span>F {item.fat}</span>
-                  <span>C {item.carbs}</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        <div style={styles.macroSummary}>
-          <div style={styles.macroSummaryItem}>
-            Protein 合計 {Math.round(totalMacro.protein)}g
-            {displaySettings.plan ? ` / 計画 ${Math.round(data.reduce((sum, item) => sum + item.plan.protein, 0))}g` : ''}
-            {displaySettings.target && latest ? ` / 目標 ${Math.round(latest.target.protein * data.length)}g` : ''}
-          </div>
-          <div style={styles.macroSummaryItem}>
-            Fat 合計 {Math.round(totalMacro.fat)}g
-            {displaySettings.plan ? ` / 計画 ${Math.round(data.reduce((sum, item) => sum + item.plan.fat, 0))}g` : ''}
-            {displaySettings.target && latest ? ` / 目標 ${Math.round(latest.target.fat * data.length)}g` : ''}
-          </div>
-          <div style={styles.macroSummaryItem}>
-            Carbs 合計 {Math.round(totalMacro.carbs)}g
-            {displaySettings.plan ? ` / 計画 ${Math.round(data.reduce((sum, item) => sum + item.plan.carbs, 0))}g` : ''}
-            {displaySettings.target && latest ? ` / 目標 ${Math.round(latest.target.carbs * data.length)}g` : ''}
-          </div>
-        </div>
-      </SurfaceCard>
-
-      <SurfaceCard>
         <CardHeader>水分摂取トレンド</CardHeader>
         <TrendLine
           values={water}
@@ -593,34 +550,56 @@ function NutritionSection({ data, displaySettings }: { data: typeof nutritionTim
   )
 }
 
-function ExerciseFilter({
+function ExerciseSelectorPanel({
   exerciseSummary,
   selectedExercises,
+  isOpen,
+  onToggleOpen,
   onToggleExercise,
 }: {
   exerciseSummary: ExerciseHistory[]
   selectedExercises: string[]
+  isOpen: boolean
+  onToggleOpen: () => void
   onToggleExercise: (name: string) => void
 }) {
-  const selectedVisibleCount = exerciseSummary.filter((exercise) => selectedExercises.includes(exercise.name)).length
+  const selectedNames = exerciseSummary
+    .filter((exercise) => selectedExercises.includes(exercise.name))
+    .map((exercise) => exercise.name)
 
   return (
     <SurfaceCard>
-      <div style={styles.filterHeader}>
-        <CardHeader>表示する種目</CardHeader>
-        <div style={styles.filterMeta}>{selectedVisibleCount}/{exerciseSummary.length} 種目</div>
+      <div style={styles.exerciseSelectorHeader}>
+        <div style={styles.exerciseSelectorCopy}>
+          <div style={styles.exerciseSelectorTitle}>種目別データ</div>
+          <div style={styles.exerciseSelectorMeta}>
+            {selectedNames.length}/{exerciseSummary.length} 種目
+            {selectedNames.length > 0 ? ` ・ ${selectedNames.join(' / ')}` : ' ・ 未選択'}
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-label="表示する種目を選択"
+          aria-expanded={isOpen}
+          onClick={onToggleOpen}
+          style={{ ...styles.exerciseSelectorButton, ...(isOpen ? styles.exerciseSelectorButtonActive : undefined) }}
+        >
+          <MoreDots />
+        </button>
       </div>
-      <div style={styles.exerciseFilterGrid}>
-        {exerciseSummary.map((exercise) => (
-          <CheckboxChip
-            key={exercise.name}
-            label={exercise.name}
-            description={`BEST ${exercise.maxOneRm.toFixed(1)}kg`}
-            checked={selectedExercises.includes(exercise.name)}
-            onChange={() => onToggleExercise(exercise.name)}
-          />
-        ))}
-      </div>
+      {isOpen ? (
+        <div style={styles.exerciseFilterGrid}>
+          {exerciseSummary.map((exercise) => (
+            <CheckboxChip
+              key={exercise.name}
+              label={exercise.name}
+              description={`BEST ${exercise.maxOneRm.toFixed(1)}kg`}
+              checked={selectedExercises.includes(exercise.name)}
+              onChange={() => onToggleExercise(exercise.name)}
+            />
+          ))}
+        </div>
+      ) : null}
     </SurfaceCard>
   )
 }
@@ -638,6 +617,7 @@ function TrainingSection({
   selectedExercises: string[]
   onToggleExercise: (name: string) => void
 }) {
+  const [isExerciseSelectorOpen, setIsExerciseSelectorOpen] = useState(false)
   const calories = logs.map((item) => item.burnedCalories)
   const rmProgress = exerciseSummary.map((exercise) => ({
     exercise,
@@ -645,55 +625,9 @@ function TrainingSection({
   }))
   const visibleProgress = rmProgress.filter((item) => selectedExercises.includes(item.exercise.name))
   const latestDay = logs[logs.length - 1]
-  const improvedCount = visibleProgress.filter((item) => item.progress.delta > 0.25).length
-  const topProgress = visibleProgress.reduce<(typeof rmProgress)[number] | undefined>((best, item) => {
-    if (!best) return item
-    return item.progress.delta > best.progress.delta ? item : best
-  }, undefined)
-  const totalSets = visibleProgress.reduce((sum, item) => sum + item.exercise.totalSets, 0)
 
   return (
     <div style={styles.sectionColumn}>
-      <ExerciseFilter
-        exerciseSummary={exerciseSummary}
-        selectedExercises={selectedExercises}
-        onToggleExercise={onToggleExercise}
-      />
-      <SurfaceCard>
-        <CardHeader>トレーニング総覧</CardHeader>
-        <div style={styles.summaryGrid}>
-          <MetricChip
-            label="推定MAX RM更新"
-            value={`${improvedCount}/${visibleProgress.length}`}
-            delta="伸びた種目数"
-            color={improvedCount > 0 ? COLORS.success : COLORS.textPrimary}
-          />
-          <MetricChip
-            label="最大伸び"
-            value={topProgress ? formatSigned(topProgress.progress.delta, 'kg') : '—'}
-            delta={topProgress?.exercise.name ?? '対象種目なし'}
-          />
-          <MetricChip
-            label="消費カロリー"
-            value={`${latestDay?.burnedCalories ?? 0} kcal`}
-            delta={
-              latestDay
-                ? comparisonText({
-                    actual: latestDay.burnedCalories,
-                    plan: latestDay.plannedCalories,
-                    target: latestDay.targetCalories,
-                    unit: 'kcal',
-                    settings: displaySettings,
-                    digits: 0,
-                  })
-                : '実績なし'
-            }
-            color={COLORS.healthYellow}
-          />
-          <MetricChip label="総セット数" value={totalSets} delta="RM伸長の裏側" />
-        </div>
-      </SurfaceCard>
-
       <SurfaceCard>
         <CardHeader>消費カロリー時系列</CardHeader>
         <TrendLine
@@ -707,6 +641,14 @@ function TrainingSection({
           targetValue={displaySettings.target ? latestDay?.targetCalories : undefined}
         />
       </SurfaceCard>
+
+      <ExerciseSelectorPanel
+        exerciseSummary={exerciseSummary}
+        selectedExercises={selectedExercises}
+        isOpen={isExerciseSelectorOpen}
+        onToggleOpen={() => setIsExerciseSelectorOpen((current) => !current)}
+        onToggleExercise={onToggleExercise}
+      />
 
       {visibleProgress.length === 0 ? (
         <SurfaceCard>
@@ -948,6 +890,24 @@ const styles: { [key: string]: CSSProperties } = {
     flexDirection: 'column',
     borderRadius: 34,
   },
+  headerMenuButton: {
+    width: 50,
+    height: 50,
+    borderRadius: '50%',
+    border: `1px solid ${COLORS.borderStrong}`,
+    background: COLORS.surfaceRaised,
+    color: COLORS.textPrimary,
+    display: 'inline-flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontSize: 18,
+    flexShrink: 0,
+  },
+  headerMenuButtonActive: {
+    border: '1px solid rgba(255,107,44,0.36)',
+    background: 'rgba(255,107,44,0.12)',
+    color: COLORS.primary,
+  },
   page: {
     minHeight: '100vh',
     background: COLORS.background,
@@ -1108,7 +1068,7 @@ const styles: { [key: string]: CSSProperties } = {
     background: COLORS.surface,
     color: COLORS.textSecondary,
   },
-  displaySettingsWrap: {
+  displaySettingsPanel: {
     marginBottom: 18,
   },
   main: {
@@ -1203,19 +1163,50 @@ const styles: { [key: string]: CSSProperties } = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  filterHeader: {
+  exerciseSelectorHeader: {
     display: 'flex',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
   },
-  filterMeta: {
+  exerciseSelectorCopy: {
+    minWidth: 0,
+  },
+  exerciseSelectorTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 12,
+    fontWeight: 900,
+    letterSpacing: 0,
+    textTransform: 'uppercase',
+  },
+  exerciseSelectorMeta: {
+    marginTop: 6,
     color: COLORS.textMuted,
     fontSize: 11,
     fontWeight: 800,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  exerciseSelectorButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    border: `1px solid ${COLORS.borderStrong}`,
+    background: COLORS.surfaceRaised,
+    color: COLORS.textPrimary,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     flex: '0 0 auto',
   },
+  exerciseSelectorButtonActive: {
+    border: '1px solid rgba(255,107,44,0.36)',
+    background: 'rgba(255,107,44,0.12)',
+    color: COLORS.primary,
+  },
   exerciseFilterGrid: {
+    marginTop: 14,
     display: 'grid',
     gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     gap: 8,
