@@ -95,6 +95,7 @@ export default function WorkoutSetLogPage() {
   const [pendingExerciseName, setPendingExerciseName] = useState<string | null>(null);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [showFinishSummary, setShowFinishSummary] = useState(false);
+  const [sessionSavedAt, setSessionSavedAt] = useState<string | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([
     {
       name: 'Bench Press',
@@ -137,7 +138,7 @@ export default function WorkoutSetLogPage() {
   const isExerciseStarted = startedExerciseNames.includes(activeExerciseName);
   const activeWarmupIndex = activeWarmupIndexByExercise[activeExerciseName] || 0;
   const pendingExercise = pendingExerciseName ? exercises.find((exercise) => exercise.name === pendingExerciseName) : null;
-  const activeExerciseIsIncomplete = isExerciseStarted && activeExercise.sets.some((set) => !set.done);
+  const activeExerciseIsIncomplete = isExerciseStarted && activeExercise.sets.some((set) => !set.done && !set.skipped);
   const totalDone = exercises.reduce((sum, exercise) => sum + exercise.sets.filter((set) => set.done).length, 0);
   const totalSets = exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
   const unfinishedSets = exercises.reduce(
@@ -418,15 +419,22 @@ export default function WorkoutSetLogPage() {
   function addExerciseFromLibrary(exercise: Exercise) {
     setExercises((currentExercises) => [...currentExercises, exercise]);
     setShowExercisePicker(false);
+    resetInteractionState();
+
+    if (activeExerciseIsIncomplete) {
+      setScreen('list');
+      return;
+    }
+
     setActiveExerciseName(exercise.name);
     setScreen('active');
     setExerciseTab('Sets');
-    resetInteractionState();
     setOpenSet(exercise.sets.find((set) => !set.done && !set.skipped)?.set || 1);
   }
 
   function saveWorkoutSummary() {
-    // Demo UI: future API payload is represented by current state and confirmation copy.
+    const savedAt = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' }).format(new Date());
+    setSessionSavedAt(savedAt);
     setShowFinishSummary(false);
   }
 
@@ -464,6 +472,7 @@ export default function WorkoutSetLogPage() {
           onActivate={requestExerciseActivation}
           onOpenExercisePicker={() => setShowExercisePicker(true)}
           onOpenFinishSummary={() => setShowFinishSummary(true)}
+          sessionSavedAt={sessionSavedAt}
         />
       ) : (
         <ActiveExerciseScreen
@@ -588,6 +597,7 @@ function ExerciseListScreen({
   activeExerciseName,
   onOpenExercisePicker,
   onOpenFinishSummary,
+  sessionSavedAt,
 }:{
   exercises: Exercise[];
   totalDone: number;
@@ -597,6 +607,7 @@ function ExerciseListScreen({
   onActivate: (exerciseName: string) => void;
   onOpenExercisePicker: () => void;
   onOpenFinishSummary: () => void;
+  sessionSavedAt: string | null;
 }) {
   return (
     <>
@@ -607,6 +618,7 @@ function ExerciseListScreen({
           <div>
             <div style={styles.kicker}>TODAY'S EXERCISES</div>
             <div style={styles.sessionTitle}>Choose what’s open</div>
+            {sessionSavedAt ? <div style={styles.sessionSavedText}>Saved {sessionSavedAt}</div> : null}
           </div>
           <CountPill done={totalDone} total={totalSets} variant="session" />
         </section>
@@ -709,7 +721,7 @@ function ExerciseSwitchModal({
       title={`${currentExerciseName} is still open`}
       labelledBy="exercise-switch-title"
       actions={[
-        { label: 'Skip Rest & Open', onClick: onCompleteAndOpen, variant: 'primary' },
+        { label: 'Skip Open Sets & Open', onClick: onCompleteAndOpen, variant: 'primary' },
         { label: 'Open Anyway', onClick: onOpenAnyway, variant: 'secondary' },
         { label: 'Stay', onClick: onStay, variant: 'ghost' },
       ]}
@@ -914,7 +926,7 @@ function ActiveExerciseScreen({
   onAdjustRest: (seconds: number) => void;
 }) {
   const doneCount = exercise.sets.filter((set) => set.done).length;
-  const complete = doneCount === exercise.sets.length;
+  const complete = exercise.sets.every((set) => set.done || set.skipped);
   const restNextSet = restingAfterSet != null ? exercise.sets.find((set) => set.set === restingAfterSet + 1) : null;
   const restSet = restingAfterSet != null ? exercise.sets.find((set) => set.set === restingAfterSet) : null;
   const activeLoggingSet = loggingSet != null ? exercise.sets.find((set) => set.set === loggingSet) : null;
@@ -1492,6 +1504,7 @@ const styles: { [key: string]: CSSProperties } = {
   activeTopRestContent: { padding: '2px 0 0', display: 'grid', gap: 12 },
   kicker: { color: COLORS.primary, fontSize: 12, fontWeight: 900, letterSpacing: 0.8, textAlign: 'left' },
   sessionTitle: { marginTop: 6, fontSize: 25, fontWeight: 850, letterSpacing: -0.8, textAlign: 'left' },
+  sessionSavedText: { marginTop: 6, color: COLORS.success, fontSize: 12, fontWeight: 850 },
   nextSetLine: { marginTop: 5, color: COLORS.textPrimary, fontSize: 22, fontWeight: 850, letterSpacing: -0.4, lineHeight: 1.2, wordBreak: 'keep-all' },
   sessionMeta: { marginTop: 8, color: COLORS.textSecondary, fontSize: 13, lineHeight: 1.25 },
   setHeaderTitle: { marginLeft: 0, textAlign: 'left', color: ACTIVE_SET_COLOR, fontSize: 20, fontWeight: 850, letterSpacing: -0.4, marginBottom: 12 },

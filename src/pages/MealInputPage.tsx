@@ -141,6 +141,16 @@ function todayKey() {
   return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`
 }
 
+function normalizePlanTargets(item: Partial<typeof DAILY_PLAN> | undefined): typeof DAILY_PLAN {
+  return {
+    calories: Number.isFinite(item?.calories) ? Math.max(0, Number(item?.calories)) : DAILY_PLAN.calories,
+    protein: Number.isFinite(item?.protein) ? Math.max(0, Number(item?.protein)) : DAILY_PLAN.protein,
+    fat: Number.isFinite(item?.fat) ? Math.max(0, Number(item?.fat)) : DAILY_PLAN.fat,
+    carbs: Number.isFinite(item?.carbs) ? Math.max(0, Number(item?.carbs)) : DAILY_PLAN.carbs,
+    waterLiters: Number.isFinite(item?.waterLiters) ? Math.max(0, Number(item?.waterLiters)) : DAILY_PLAN.waterLiters,
+  }
+}
+
 function normalizeMeal(item: Partial<Meal>, index: number): Meal {
   return {
     id: typeof item.id === 'string' ? item.id : `meal-${index + 1}`,
@@ -249,15 +259,21 @@ function loadInitialDailyLog(): DailyMealLog {
     }
     const parsed = JSON.parse(stored)
     if (Array.isArray(parsed)) {
-      return { schemaVersion: 2, date: todayKey(), meals: parsed.map(normalizeMeal), waterLiters: 1.6, planTargets: DAILY_PLAN }
+      const meals = parsed.map(normalizeMeal)
+      return { schemaVersion: 2, date: todayKey(), meals: meals.length > 0 ? meals : DEFAULT_MEALS, waterLiters: 1.6, planTargets: DAILY_PLAN }
     }
     if (parsed && typeof parsed === 'object') {
+      const date = typeof parsed.date === 'string' ? parsed.date : todayKey()
+      if (date !== todayKey()) {
+        return { schemaVersion: 2, date: todayKey(), meals: DEFAULT_MEALS, waterLiters: 1.6, planTargets: normalizePlanTargets(parsed.planTargets) }
+      }
+      const meals = Array.isArray(parsed.meals) ? parsed.meals.map(normalizeMeal) : DEFAULT_MEALS
       return {
         schemaVersion: 2,
-        date: typeof parsed.date === 'string' ? parsed.date : todayKey(),
-        meals: Array.isArray(parsed.meals) ? parsed.meals.map(normalizeMeal) : DEFAULT_MEALS,
+        date,
+        meals: meals.length > 0 ? meals : DEFAULT_MEALS,
         waterLiters: Number.isFinite(parsed.waterLiters) ? Math.max(0, Number(parsed.waterLiters)) : 1.6,
-        planTargets: DAILY_PLAN,
+        planTargets: normalizePlanTargets(parsed.planTargets),
       }
     }
   } catch {
@@ -312,11 +328,11 @@ export default function MealInputPage() {
       date: dailyLog.date,
       meals,
       waterLiters,
-      planTargets: DAILY_PLAN,
+      planTargets: dailyLog.planTargets,
     }
     setDailyLog(nextLog)
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextLog))
-  }, [dailyLog.date, meals, waterLiters])
+  }, [dailyLog.date, dailyLog.planTargets, meals, waterLiters])
 
   useEffect(() => {
     window.localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(manualPresets))
@@ -443,8 +459,9 @@ export default function MealInputPage() {
             totals={totals}
             savedCount={savedCount}
             totalMeals={meals.length}
+            calorieTarget={dailyLog.planTargets.calories}
             waterLiters={waterLiters}
-            waterTarget={DAILY_PLAN.waterLiters}
+            waterTarget={dailyLog.planTargets.waterLiters}
             onWaterChange={setWaterLiters}
           />
 
@@ -561,6 +578,7 @@ function DailySummaryCard({
   totals,
   savedCount,
   totalMeals,
+  calorieTarget,
   waterLiters,
   waterTarget,
   onWaterChange,
@@ -568,6 +586,7 @@ function DailySummaryCard({
   totals: { protein: number; fat: number; carbs: number; calories: number }
   savedCount: number
   totalMeals: number
+  calorieTarget: number
   waterLiters: number
   waterTarget: number
   onWaterChange: (value: number) => void
@@ -577,7 +596,7 @@ function DailySummaryCard({
       <div style={styles.summaryHeader}>
         <div>
           <p style={styles.kicker}>TODAY'S INTAKE</p>
-          <MetricValue value={totals.calories} target={DAILY_PLAN.calories} unit="kcal" size="xl" style={styles.calorieMetric} />
+          <MetricValue value={totals.calories} target={calorieTarget} unit="kcal" size="xl" style={styles.calorieMetric} />
         </div>
         <div style={styles.summaryBadge}>{savedCount}/{totalMeals}</div>
       </div>
@@ -596,7 +615,7 @@ function DailySummaryCard({
         <label style={styles.waterDirectInput}>
           <span style={styles.waterLabel}>DIRECT</span>
           <input
-            value={waterLiters || ''}
+            value={waterLiters}
             onChange={(event) => onWaterChange(readNumericInput(event.target.value))}
             inputMode="decimal"
             aria-label="水分 L"

@@ -1,4 +1,4 @@
-import { Link, Route, HashRouter, Routes } from 'react-router-dom'
+import { Link, Navigate, Route, HashRouter, Routes } from 'react-router-dom'
 import type { CSSProperties } from 'react'
 import HealthAssistantChatPage from './pages/HealthAssistantChatPage'
 import HomePage from './pages/HomePage'
@@ -14,7 +14,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/calendar" element={<CalendarLogPage />} />
-        <Route path="/history" element={<CalendarLogPage />} />
+        <Route path="/history" element={<Navigate to="/calendar" replace />} />
         <Route path="/data-review" element={<HealthDataReviewPage />} />
         <Route path="/chat" element={<HealthAssistantChatPage />} />
         <Route path="/meal" element={<MealInputPage />} />

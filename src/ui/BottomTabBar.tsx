@@ -9,9 +9,10 @@ const TABS = [
 ] as const
 
 function getActiveTab(pathname: string) {
-  if (pathname === '/calendar' || pathname === '/history') return '/calendar'
+  if (pathname === '/calendar') return '/calendar'
   if (pathname === '/data-review') return '/data-review'
-  return '/'
+  if (pathname === '/') return '/'
+  return null
 }
 
 export function BottomTabBar() {

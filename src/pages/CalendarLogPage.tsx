@@ -13,6 +13,8 @@ import { COLORS } from '../ui/tokens'
 const VIEW_MODES = ['meal', 'training'] as const
 const WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日']
 const STORAGE_KEY = 'workout-health-calendar-logs-v1'
+const MEAL_STORAGE_KEY = 'workout-health-meals-v1'
+const DAILY_PLAN_TARGETS = { calories: 2200, protein: 150, fat: 60, carbs: 240, waterLiters: 2.5 }
 
 type ViewMode = (typeof VIEW_MODES)[number]
 type MacroKey = 'protein' | 'fat' | 'carbs'
@@ -69,30 +71,121 @@ type DailyPlan = {
   }>
 }
 
+function defaultMeals(date: string): MealDraft[] {
+  return [
+    { id: `${date}-meal-1`, label: 'MEAL 1', timeLabel: '08:00', protein: 0, fat: 0, carbs: 0, memo: '', saved: false },
+    { id: `${date}-meal-2`, label: 'MEAL 2', timeLabel: '12:30', protein: 0, fat: 0, carbs: 0, memo: '', saved: false },
+    { id: `${date}-meal-3`, label: 'MEAL 3', timeLabel: '19:00', protein: 0, fat: 0, carbs: 0, memo: '', saved: false },
+  ]
+}
+
+function normalizeMealDraft(item: Partial<MealDraft>, index: number, date: string): MealDraft {
+  return {
+    id: typeof item.id === 'string' ? item.id : `${date}-meal-${index + 1}`,
+    label: typeof item.label === 'string' ? item.label : `MEAL ${index + 1}`,
+    timeLabel: typeof item.timeLabel === 'string' ? item.timeLabel : index === 0 ? '08:00' : index === 1 ? '12:30' : '19:00',
+    protein: Number.isFinite(item.protein) ? Math.max(0, Number(item.protein)) : 0,
+    fat: Number.isFinite(item.fat) ? Math.max(0, Number(item.fat)) : 0,
+    carbs: Number.isFinite(item.carbs) ? Math.max(0, Number(item.carbs)) : 0,
+    memo: typeof item.memo === 'string' ? item.memo : '',
+    saved: Boolean(item.saved),
+  }
+}
+
+function normalizeSetDraft(item: Partial<TrainingSetDraft>, index: number): TrainingSetDraft {
+  const planWeight = Number.isFinite(item.planWeight) ? Math.max(0, Number(item.planWeight)) : 0
+  const planReps = Number.isFinite(item.planReps) ? Math.max(0, Number(item.planReps)) : 0
+  return {
+    set: Number.isFinite(item.set) ? Math.max(1, Number(item.set)) : index + 1,
+    planWeight,
+    planReps,
+    actualWeight: Number.isFinite(item.actualWeight) ? Math.max(0, Number(item.actualWeight)) : planWeight,
+    actualReps: Number.isFinite(item.actualReps) ? Math.max(0, Number(item.actualReps)) : planReps,
+    done: Boolean(item.done),
+  }
+}
+
+function normalizeTrainingDraft(item: Partial<TrainingExerciseDraft>): TrainingExerciseDraft | null {
+  if (typeof item.name !== 'string' || !item.name.trim()) return null
+  return {
+    name: item.name,
+    target: typeof item.target === 'string' ? item.target : '',
+    sets: Array.isArray(item.sets) ? item.sets.map((set, index) => normalizeSetDraft(set, index)) : [],
+  }
+}
+
+function mergePlanIntoLog(log: DailyLog, plan?: DailyPlan): DailyLog {
+  if (!plan) return log
+  const blank = makeBlankLog(log.date, plan)
+  return {
+    ...log,
+    meals: log.meals.length > 0 ? log.meals : blank.meals,
+    training: log.training.length > 0 ? log.training : blank.training,
+  }
+}
+
 function normalizeLog(item: Partial<DailyLog>): DailyLog {
   const date = typeof item.date === 'string' ? item.date : toDateKey(new Date())
+  const meals = Array.isArray(item.meals)
+    ? item.meals.map((meal, index) => normalizeMealDraft(meal, index, date)).filter((meal) => meal.label)
+    : []
+  const training = Array.isArray(item.training)
+    ? item.training.map(normalizeTrainingDraft).filter((exercise): exercise is TrainingExerciseDraft => Boolean(exercise))
+    : []
   return {
     ...makeBlankLog(date),
     ...item,
     bodyWeight: Number.isFinite(item.bodyWeight) ? Number(item.bodyWeight) : 0,
     waterLiters: Number.isFinite(item.waterLiters) ? Number(item.waterLiters) : 0,
-    meals: Array.isArray(item.meals) ? item.meals : makeBlankLog(date).meals,
-    training: Array.isArray(item.training) ? item.training : makeBlankLog(date).training,
+    meals: meals.length > 0 ? meals : defaultMeals(date),
+    training,
     note: typeof item.note === 'string' ? item.note : '',
   }
 }
 
+function readTodayMealLog(date: string): Pick<DailyLog, 'meals' | 'waterLiters'> | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const stored = window.localStorage.getItem(MEAL_STORAGE_KEY)
+    if (!stored) return null
+    const parsed = JSON.parse(stored)
+    if (!parsed || typeof parsed !== 'object' || parsed.date !== date) return null
+    const meals = Array.isArray(parsed.meals)
+      ? parsed.meals.map((meal: Partial<MealDraft>, index: number) => normalizeMealDraft(meal, index, date))
+      : defaultMeals(date)
+    return {
+      meals: meals.length > 0 ? meals : defaultMeals(date),
+      waterLiters: Number.isFinite(parsed.waterLiters) ? Math.max(0, Number(parsed.waterLiters)) : 0,
+    }
+  } catch {
+    return null
+  }
+}
+
 function loadInitialLogs() {
+  const today = toDateKey(new Date())
+  const applyTodayMealLog = (logs: DailyLog[]) => {
+    const todayMealLog = readTodayMealLog(today)
+    if (!todayMealLog) return logs.map((log) => mergePlanIntoLog(log, MOCK_PLANS.find((plan) => plan.date === log.date)))
+    const nextLogs = logs.map((log) =>
+      log.date === today ? { ...mergePlanIntoLog(log, MOCK_PLANS.find((plan) => plan.date === log.date)), ...todayMealLog } : mergePlanIntoLog(log, MOCK_PLANS.find((plan) => plan.date === log.date))
+    )
+    return nextLogs.some((log) => log.date === today)
+      ? nextLogs
+      : [...nextLogs, { ...makeBlankLog(today, MOCK_PLANS.find((plan) => plan.date === today)), ...todayMealLog }]
+  }
+
   if (typeof window === 'undefined') return MOCK_LOGS
 
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (!stored) return MOCK_LOGS
+    if (!stored) return applyTodayMealLog(MOCK_LOGS)
     const parsed = JSON.parse(stored)
-    if (!Array.isArray(parsed)) return MOCK_LOGS
-    return parsed.map(normalizeLog)
+    if (!Array.isArray(parsed)) return applyTodayMealLog(MOCK_LOGS)
+    return applyTodayMealLog(parsed.map(normalizeLog))
   } catch {
-    return MOCK_LOGS
+    return applyTodayMealLog(MOCK_LOGS)
   }
 }
 
@@ -264,7 +357,7 @@ function calcCalories(meal: Pick<MealDraft, 'protein' | 'fat' | 'carbs'>) {
 
 function setsFromPlan(planSets: string): TrainingSetDraft[] {
   const match = planSets.match(/(\d+(?:\.\d+)?)kg\s*x\s*(\d+)\s*x\s*(\d+)/i)
-  if (!match) return [createSet(1, 20, 10)]
+  if (!match) return []
 
   const weight = Number(match[1])
   const reps = Number(match[2])
@@ -286,16 +379,14 @@ function makeBlankLog(date: string, plan?: DailyPlan): DailyLog {
       carbs: 0,
       memo: '',
       saved: false,
-    })) ?? [
-      { id: `${date}-meal-1`, label: 'MEAL 1', timeLabel: '08:00', protein: 0, fat: 0, carbs: 0, memo: '', saved: false },
-      { id: `${date}-meal-2`, label: 'MEAL 2', timeLabel: '12:30', protein: 0, fat: 0, carbs: 0, memo: '', saved: false },
-      { id: `${date}-meal-3`, label: 'MEAL 3', timeLabel: '19:00', protein: 0, fat: 0, carbs: 0, memo: '', saved: false },
-    ],
-    training: plan?.training.map((exercise) => ({
-      name: exercise.name,
-      target: exercise.target,
-      sets: setsFromPlan(exercise.sets),
-    })) ?? [],
+    })) ?? defaultMeals(date),
+    training: plan?.training
+      .map((exercise) => ({
+        name: exercise.name,
+        target: exercise.target,
+        sets: setsFromPlan(exercise.sets),
+      }))
+      .filter((exercise) => exercise.sets.length > 0) ?? [],
     note: '',
   }
 }
@@ -344,7 +435,20 @@ export default function CalendarLogPage() {
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(logs))
-  }, [logs])
+    const todayLog = logs.find((log) => log.date === todayKey)
+    if (todayLog) {
+      window.localStorage.setItem(
+        MEAL_STORAGE_KEY,
+        JSON.stringify({
+          schemaVersion: 2,
+          date: todayKey,
+          meals: todayLog.meals,
+          waterLiters: todayLog.waterLiters,
+          planTargets: DAILY_PLAN_TARGETS,
+        })
+      )
+    }
+  }, [logs, todayKey])
 
   function updateSelectedLog(updater: (log: DailyLog) => DailyLog) {
     setLogs((currentLogs) => {
@@ -657,6 +761,17 @@ function BodyHydrationEditor({
   onBodyWeightChange: (value: number) => void
   onWaterChange: (value: number) => void
 }) {
+  const [bodyWeightDraft, setBodyWeightDraft] = useState(bodyWeight ? String(bodyWeight) : '')
+  const [waterDraft, setWaterDraft] = useState(waterLiters ? String(waterLiters) : '')
+
+  useEffect(() => {
+    setBodyWeightDraft(bodyWeight ? String(bodyWeight) : '')
+  }, [bodyWeight])
+
+  useEffect(() => {
+    setWaterDraft(waterLiters ? String(waterLiters) : '')
+  }, [waterLiters])
+
   return (
     <section style={styles.bodyHydrationCard}>
       <div>
@@ -668,8 +783,9 @@ function BodyHydrationEditor({
           <span style={styles.inputLabel}>体重</span>
           <span style={styles.compactInputRow}>
             <input
-              value={bodyWeight || ''}
-              onChange={(event) => onBodyWeightChange(readNumericInput(event.target.value))}
+              value={bodyWeightDraft}
+              onChange={(event) => setBodyWeightDraft(event.target.value)}
+              onBlur={() => onBodyWeightChange(readNumericInput(bodyWeightDraft))}
               inputMode="decimal"
               aria-label="体重 kg"
               style={styles.compactNumberInput}
@@ -681,8 +797,9 @@ function BodyHydrationEditor({
           <span style={styles.inputLabel}>水分</span>
           <span style={styles.compactInputRow}>
             <input
-              value={waterLiters || ''}
-              onChange={(event) => onWaterChange(readNumericInput(event.target.value))}
+              value={waterDraft}
+              onChange={(event) => setWaterDraft(event.target.value)}
+              onBlur={() => onWaterChange(readNumericInput(waterDraft))}
               inputMode="decimal"
               aria-label="水分 L"
               style={styles.compactNumberInput}

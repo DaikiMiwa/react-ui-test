@@ -42,6 +42,7 @@ type DisplaySettingKey = keyof DisplaySettings
 
 const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = { plan: true, target: true }
 const DEFAULT_SELECTED_EXERCISES = ['Bench Press', 'Squat', 'Deadlift']
+const MEAL_STORAGE_KEY = 'workout-health-meals-v1'
 
 function calcOneRm(set: TrainingSet) {
   return set.weight * (1 + set.reps / 30)
@@ -231,6 +232,39 @@ function makeTrendPoints(values: number[], width: number, height: number, minVal
   })
 }
 
+function readPersistedNutritionDay() {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const stored = window.localStorage.getItem(MEAL_STORAGE_KEY)
+    if (!stored) return null
+    const parsed = JSON.parse(stored)
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.date !== 'string' || !Array.isArray(parsed.meals)) return null
+    const totals = parsed.meals.reduce(
+      (sum: { protein: number; fat: number; carbs: number }, meal: { protein?: number; fat?: number; carbs?: number }) => ({
+        protein: sum.protein + (Number.isFinite(meal.protein) ? Number(meal.protein) : 0),
+        fat: sum.fat + (Number.isFinite(meal.fat) ? Number(meal.fat) : 0),
+        carbs: sum.carbs + (Number.isFinite(meal.carbs) ? Number(meal.carbs) : 0),
+      }),
+      { protein: 0, fat: 0, carbs: 0 },
+    )
+    const calories = Math.round(totals.protein * 4 + totals.fat * 9 + totals.carbs * 4)
+    return {
+      date: parsed.date,
+      actual: {
+        calories,
+        protein: Math.round(totals.protein),
+        fat: Math.round(totals.fat),
+        carbs: Math.round(totals.carbs),
+        water: Number.isFinite(parsed.waterLiters) ? Math.round(Number(parsed.waterLiters) * 10) / 10 : 0,
+      },
+      target: parsed.planTargets,
+    }
+  } catch {
+    return null
+  }
+}
+
 export default function HealthDataReviewPage() {
   const [period, setPeriod] = useState<PeriodKey>(12)
   const [activeTab, setActiveTab] = useState<TabKey>('身体指標')
@@ -239,7 +273,29 @@ export default function HealthDataReviewPage() {
   const [selectedExercises, setSelectedExercises] = useState<string[]>(DEFAULT_SELECTED_EXERCISES)
 
   const visibleBody = useMemo(() => bodyTimeline.slice(-period), [period])
-  const visibleNutrition = useMemo(() => nutritionTimeline.slice(-period), [period])
+  const visibleNutrition = useMemo(() => {
+    const items = nutritionTimeline.slice(-period)
+    const persisted = readPersistedNutritionDay()
+    if (!persisted || !items.length) return items
+    const latest = items[items.length - 1]
+    const plan = {
+      calories: Number.isFinite(persisted.target?.calories) ? persisted.target.calories : latest.plan.calories,
+      protein: Number.isFinite(persisted.target?.protein) ? persisted.target.protein : latest.plan.protein,
+      fat: Number.isFinite(persisted.target?.fat) ? persisted.target.fat : latest.plan.fat,
+      carbs: Number.isFinite(persisted.target?.carbs) ? persisted.target.carbs : latest.plan.carbs,
+      water: Number.isFinite(persisted.target?.waterLiters) ? persisted.target.waterLiters : latest.plan.water,
+    }
+    return [
+      ...items.slice(0, -1),
+      {
+        ...latest,
+        date: persisted.date,
+        ...persisted.actual,
+        plan,
+        target: plan,
+      },
+    ]
+  }, [period])
   const visibleTraining = useMemo(() => trainingTimeline.slice(-period), [period])
   const exerciseHistory = useMemo(() => buildExerciseHistory(visibleTraining), [visibleTraining])
   const currentBody = visibleBody[visibleBody.length - 1]

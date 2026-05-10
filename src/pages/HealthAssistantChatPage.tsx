@@ -100,6 +100,7 @@ export default function HealthAssistantChat() {
   const [warmupChecked, setWarmupChecked] = useState([true, true]);
   const [warmupSkipped, setWarmupSkipped] = useState(false);
   const [exerciseSwitchDecision, setExerciseSwitchDecision] = useState<'stay' | 'complete' | 'open'>('stay');
+  const [combinedPlanRegistered, setCombinedPlanRegistered] = useState(false);
   const chatRef = useRef<HTMLElement | null>(null);
   const setOneAnalysis = makeWorkoutLogAnalysis('Bench Press 60kg 10回できました', 2);
   const setFourAnalysis = makeWorkoutLogAnalysis('Bench Press 65kg 8回できました', 3);
@@ -228,7 +229,7 @@ export default function HealthAssistantChat() {
       {
         id: Date.now(),
         role: 'assistant',
-        text: `${target.analysis.goalLabel}をデモ計画に反映しました。まずは${target.analysis.weeklyFocus}として、今日から「${target.analysis.dailyAction}」を実行タスクに置きます。`,
+        text: `${target.analysis.goalLabel}をこのカード上で追加済みにしました。本実装では週間Plan、今日の実行タスク、データ確認の目標線へ反映します。まずは${target.analysis.weeklyFocus}から始めます。`,
         time: formatMessageTime(),
       },
     ]);
@@ -285,6 +286,7 @@ export default function HealthAssistantChat() {
 
             <div style={styles.quickActions}>
               <button type="button" onClick={() => sendQuickAction('夕食でたんぱく質をあと54g取りたい')} style={styles.chip}>夕食相談</button>
+              <button type="button" onClick={() => sendQuickAction('今日の水分が足りているか見て')} style={styles.chip}>水分確認</button>
               <button type="button" onClick={() => sendQuickAction('今週の体重とトレーニング実績を見て')} style={styles.chip}>実績データ</button>
               <button type="button" onClick={() => sendQuickAction('昼ごはんに鶏むね肉、ご飯、サラダを食べた')} style={styles.chip}>食事追加</button>
             </div>
@@ -640,10 +642,10 @@ export default function HealthAssistantChat() {
               体重はRM計画とは別Planにします。まずカロリー収支を決めて、そこからPFC、最後に毎食のメニューへ落とします。
             </AssistantText>
 
-            <BodyWeightPlanCard />
             <CaloriePfcPlanCard />
             <MealMenuPlanCard />
-            <AdjustmentPolicyCard />
+            <BodyWeightPlanCard />
+            <AdjustmentPolicyCard registered={combinedPlanRegistered} onRegister={() => setCombinedPlanRegistered(true)} />
 
             <div style={styles.quickActions}>
               <button type="button" onClick={() => sendQuickAction('6ヶ月でベンチプレス100kgを上げたい')} style={styles.chip}>ベンチ100kg</button>
@@ -1084,6 +1086,7 @@ function NormalChatIntro({ onStartPlanning, onOpenTraining }: { onStartPlanning:
   const stats = [
     { label: '体重', value: '77.8kg', detail: '週平均 -0.3kg' },
     { label: 'たんぱく質', value: '96 / 150g', detail: '夕食で調整' },
+    { label: '水分', value: '1.6 / 2.5L', detail: 'Meal入力で更新' },
     { label: '直近実績', value: 'BP 67.5×8', detail: '前回ピーク' },
   ];
 
@@ -1305,7 +1308,9 @@ function PlanRequirementCard() {
   const rows = [
     { label: '期限', value: '未確認', state: 'ASK' },
     { label: '現在地', value: '重量 × 回数', state: 'ASK' },
-    { label: '頻度', value: '週の日数 / ベンチ日', state: 'ASK' },
+    { label: '週の空き', value: 'トレーニング可能日', state: 'ASK' },
+    { label: '頻度', value: 'ベンチ日 / 週', state: 'ASK' },
+    { label: '刻み', value: '最小プレート kg', state: 'ASK' },
     { label: '制約', value: 'ケガ・器具・曜日', state: 'ASK' },
   ];
 
@@ -1314,7 +1319,7 @@ function PlanRequirementCard() {
       <div style={styles.workoutHeader}>
         <span style={styles.workoutAiSpark}>AI</span>
         <span style={styles.workoutTitle}>不足情報</span>
-        <span style={styles.workoutStatusPill}>4 slots</span>
+        <span style={styles.workoutStatusPill}>6 slots</span>
       </div>
 
       <div style={styles.planSlotList}>
@@ -1581,7 +1586,7 @@ function MealMenuPlanCard() {
   );
 }
 
-function AdjustmentPolicyCard() {
+function AdjustmentPolicyCard({ registered, onRegister }: { registered: boolean; onRegister: () => void }) {
   const rules = [
     '予定達成 + 予定休憩内で完了: 次回は予定通り',
     '予定達成 + 休憩延長または重いメモ: 次回重量は据え置き',
@@ -1606,9 +1611,15 @@ function AdjustmentPolicyCard() {
         ))}
       </div>
 
-      <ActionButton variant="primary" style={styles.mealAddButton}>
-        RM計画と体重計画を登録
+      <ActionButton
+        variant={registered ? 'secondary' : 'primary'}
+        disabled={registered}
+        onClick={onRegister}
+        style={styles.mealAddButton}
+      >
+        {registered ? 'RM計画と体重計画を登録済み' : 'RM計画と体重計画を登録'}
       </ActionButton>
+      {registered ? <div style={styles.planSavedHint}>Active Plan と今日のタスクへ反映する保存済み状態です。</div> : null}
     </section>
   );
 }
@@ -3148,6 +3159,12 @@ const styles: { [key: string]: CSSProperties } = {
     color: COLORS.textSecondary,
     fontSize: 12,
     lineHeight: 1.35,
+  },
+  planSavedHint: {
+    color: COLORS.success,
+    fontSize: 12,
+    lineHeight: 1.35,
+    fontWeight: 850,
   },
   workoutStepList: {
     display: 'grid',
