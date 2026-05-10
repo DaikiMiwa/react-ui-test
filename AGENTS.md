@@ -12,6 +12,12 @@
 - This starts Vite on an available local port and opens Chrome with a session-specific `--user-data-dir` and `--remote-debugging-port`, so multiple Codex sessions can inspect the app at the same time without fighting over the same DevTools endpoint or Chrome profile lock.
 - The launcher writes `.codex/session-<id>.json` with the app URL and DevTools port for the current session. Set `CODEX_SESSION_ID`, `CODEX_APP_PORT`, `CHROME_DEBUGGING_PORT`, or `CHROME_PATH` when a session needs explicit values. Set `CODEX_OPEN_CHROME=0` for server-only or Playwright-only runs.
 
+## Visual checks
+
+- Use `pnpm run test:visual` for Playwright screenshot regression checks.
+- Use `pnpm run test:visual:update` only when an intentional UI change should replace the baseline screenshots in `tests/__screenshots__/`.
+- Use `pnpm run ci:visual` for Codex Cloud-style validation; GitHub Actions runs the same build and visual test flow in `.github/workflows/visual.yml`.
+
 ## Design documentation
 
 - Keep `DESIGN.md` as the source of truth for Workout UI design tokens, component intent, and screen-level design rules.

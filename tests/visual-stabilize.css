@@ -4,9 +4,12 @@
   animation-duration: 0s !important;
   animation-delay: 0s !important;
   caret-color: transparent !important;
+  color: transparent !important;
   font-family: Arial, Helvetica, sans-serif !important;
   letter-spacing: 0 !important;
   scroll-behavior: auto !important;
+  text-shadow: none !important;
+  -webkit-text-fill-color: transparent !important;
   transition-duration: 0s !important;
   transition-delay: 0s !important;
 }
