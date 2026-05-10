@@ -4,10 +4,8 @@ import { COLORS } from './tokens'
 
 const TABS = [
   { label: '今日', to: '/' },
+  { label: 'カレンダー', to: '/history' },
   { label: 'データ', to: '/data-review' },
-  { label: 'コーチ', to: '/chat' },
-  { label: '食事', to: '/meal' },
-  { label: '記録', to: '/workout' },
 ] as const
 
 export function BottomTabBar() {
@@ -36,7 +34,7 @@ const styles: { [key: string]: CSSProperties } = {
     bottom: 24,
     zIndex: 3,
     display: 'grid',
-    gridTemplateColumns: 'repeat(5, 1fr)',
+    gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))`,
     gap: 4,
     padding: 6,
     borderRadius: 999,
@@ -54,6 +52,7 @@ const styles: { [key: string]: CSSProperties } = {
     textDecoration: 'none',
     fontSize: 12,
     fontWeight: 900,
+    whiteSpace: 'nowrap',
   },
   active: {
     color: COLORS.textPrimary,

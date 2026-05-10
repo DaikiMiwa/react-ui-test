@@ -5,6 +5,7 @@ import { AppHeader, MoreDots } from '../ui/AppHeader';
 import { AppMain } from '../ui/AppMain';
 import { AppShell } from '../ui/AppShell';
 import { BottomActionBar } from '../ui/BottomActionBar';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { StatusPill } from '../ui/StatusPill';
@@ -628,26 +629,18 @@ function ExerciseSwitchModal({
   onCompleteAndOpen: () => void;
 }) {
   return (
-    <div style={styles.modalOverlay}>
-      <section style={styles.modalCard} role="dialog" aria-modal="true" aria-labelledby="exercise-switch-title">
-        <div style={styles.modalKicker}>EXERCISE IN PROGRESS</div>
-        <h2 id="exercise-switch-title" style={styles.modalTitle}>{currentExerciseName} is still open</h2>
-        <p style={styles.modalText}>
-          {nextExerciseName} を開きますか？未完了セットを残したまま移動するか、予定値で完了扱いにして移動できます。
-        </p>
-        <div style={styles.modalActions}>
-          <ActionButton variant="primary" onClick={onCompleteAndOpen} style={styles.modalButton}>
-            Complete & Open
-          </ActionButton>
-          <ActionButton variant="secondary" onClick={onOpenAnyway} style={styles.modalButton}>
-            Open Anyway
-          </ActionButton>
-          <ActionButton variant="ghost" onClick={onStay} style={styles.modalButton}>
-            Stay
-          </ActionButton>
-        </div>
-      </section>
-    </div>
+    <ConfirmDialog
+      eyebrow="EXERCISE IN PROGRESS"
+      title={`${currentExerciseName} is still open`}
+      labelledBy="exercise-switch-title"
+      actions={[
+        { label: 'Complete & Open', onClick: onCompleteAndOpen, variant: 'primary' },
+        { label: 'Open Anyway', onClick: onOpenAnyway, variant: 'secondary' },
+        { label: 'Stay', onClick: onStay, variant: 'ghost' },
+      ]}
+    >
+      {nextExerciseName} を開きますか？未完了セットを残したまま移動するか、予定値で完了扱いにして移動できます。
+    </ConfirmDialog>
   );
 }
 
@@ -1377,8 +1370,6 @@ const styles: { [key: string]: CSSProperties } = {
   restPillTime: { color: COLORS.primary, fontSize: 24, lineHeight: 1, fontWeight: 900, letterSpacing: -0.6 },
   restPillLabel: { marginTop: 5, color: COLORS.textSecondary, fontSize: 11, fontWeight: 800, textTransform: 'uppercase' },
   segmentedControl: { height: 36, background: COLORS.borderStrong, borderRadius: 999, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', padding: 2, gap: 2, margin: '14px 0', position: 'sticky', top: 0, zIndex: 3 },
-  segment: { border: 0, background: 'transparent', color: COLORS.textSecondary, fontSize: 14, fontWeight: 700, borderRadius: 999 },
-  segmentActive: { border: 0, background: COLORS.primary, color: COLORS.background, fontSize: 14, fontWeight: 800, borderRadius: 999 },
   listHint: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 1.4, margin: '14px 4px 14px' },
   exerciseCard: { background: COLORS.surfaceRaised, border: `1px solid ${COLORS.borderStrong}`, borderRadius: 18, padding: 18, marginBottom: 18 },
   exerciseHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 },

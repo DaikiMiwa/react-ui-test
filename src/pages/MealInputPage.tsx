@@ -4,7 +4,12 @@ import { ActionButton } from '../ui/ActionButton'
 import { AppHeader, MoreDots } from '../ui/AppHeader'
 import { AppMain } from '../ui/AppMain'
 import { AppShell } from '../ui/AppShell'
+import { HorizontalPicker } from '../ui/HorizontalPicker'
 import { IconButton } from '../ui/IconButton'
+import { MacroBar, MacroInputGrid, MacroSummaryGrid, MACRO_FIELDS } from '../ui/MacroSummary'
+import type { MacroKey } from '../ui/MacroSummary'
+import { MetricValue } from '../ui/MetricValue'
+import { SelectableCard } from '../ui/SelectableCard'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { SectionHeader } from '../ui/SectionHeader'
 import { StatusPill } from '../ui/StatusPill'
@@ -14,8 +19,6 @@ const STORAGE_KEY = 'workout-health-meals-v1'
 const PRESET_STORAGE_KEY = 'workout-health-meal-presets-v1'
 const DAILY_CALORIE_TARGET = 2200
 const ENTRY_MODES = ['assist', 'manual'] as const
-
-type MacroKey = 'protein' | 'fat' | 'carbs'
 
 type Meal = {
   id: string
@@ -89,12 +92,6 @@ const DEFAULT_MEALS: Meal[] = [
     savedAt: null,
     dirty: true,
   },
-]
-
-const MACRO_FIELDS: Array<{ key: MacroKey; label: string; shortLabel: string; color: string }> = [
-  { key: 'protein', label: 'Protein', shortLabel: 'P', color: COLORS.protein },
-  { key: 'fat', label: 'Fat', shortLabel: 'F', color: COLORS.fat },
-  { key: 'carbs', label: 'Carbs', shortLabel: 'C', color: COLORS.carbs },
 ]
 
 const MANUAL_PRESETS: MacroPreset[] = [
@@ -404,7 +401,7 @@ export default function MealInputPage() {
               title="Meals"
               action={<button type="button" onClick={addMeal} style={styles.addMealButton}>+ Meal</button>}
             />
-            <div style={styles.mealPicker}>
+            <HorizontalPicker>
               {meals.map((meal) => (
                 <MealPickerCard
                   key={meal.id}
@@ -413,7 +410,7 @@ export default function MealInputPage() {
                   onSelect={() => setActiveMealId(meal.id)}
                 />
               ))}
-            </div>
+            </HorizontalPicker>
           </section>
 
           <section style={styles.editorCard}>
@@ -517,81 +514,39 @@ function DailySummaryCard({
   savedCount: number
   totalMeals: number
 }) {
-  const macroTotal = totals.protein + totals.fat + totals.carbs
-
   return (
     <section style={styles.summaryCard}>
       <div style={styles.summaryHeader}>
         <div>
           <p style={styles.kicker}>TODAY'S INTAKE</p>
-          <div style={styles.calorieRow}>
-            <span style={styles.calorieValue}>{totals.calories}</span>
-            <span style={styles.calorieDivider}>/</span>
-            <span style={styles.calorieTarget}>{DAILY_CALORIE_TARGET}</span>
-            <span style={styles.calorieUnit}>kcal</span>
-          </div>
+          <MetricValue value={totals.calories} target={DAILY_CALORIE_TARGET} unit="kcal" size="xl" style={styles.calorieMetric} />
         </div>
         <div style={styles.summaryBadge}>{savedCount}/{totalMeals}</div>
       </div>
 
-      <div style={styles.macroBar} aria-hidden="true">
-        {MACRO_FIELDS.map((field) => {
-          const value = totals[field.key]
-          const width = macroTotal > 0 ? (value / macroTotal) * 100 : 0
-          return <span key={field.key} style={{ ...styles.macroBarSegment, width: `${width}%`, background: field.color }} />
-        })}
-      </div>
-
-      <div style={styles.summaryGrid}>
-        {MACRO_FIELDS.map((field) => (
-          <div key={field.key} style={styles.summaryMacro}>
-            <span style={{ ...styles.summaryDot, background: field.color }} />
-            <span style={styles.summaryMacroLabel}>{field.shortLabel}</span>
-            <strong style={styles.summaryMacroValue}>{formatGram(totals[field.key])}</strong>
-          </div>
-        ))}
-      </div>
+      <MacroBar values={totals} style={styles.summaryMacroBar} />
+      <MacroSummaryGrid values={totals} formatValue={(value) => formatGram(value)} style={styles.summaryMacroGrid} />
     </section>
   )
 }
 
 function MealPickerCard({ meal, isActive, onSelect }: { meal: Meal; isActive: boolean; onSelect: () => void }) {
   const status = meal.dirty ? 'Draft' : 'Saved'
-  const pickerStyle = isActive ? { ...styles.mealPickerCard, ...styles.mealPickerCardActive } : styles.mealPickerCard
 
   return (
-    <button type="button" onClick={onSelect} style={pickerStyle}>
+    <SelectableCard selected={isActive} onClick={onSelect} style={styles.mealPickerCard}>
       <span style={styles.mealPickerLabel}>{meal.label}</span>
       <span style={styles.mealPickerMeta}>{meal.timeLabel}</span>
       <span style={isActive ? styles.mealPickerStatusActive : styles.mealPickerStatus}>{status}</span>
       <span style={styles.mealPickerMacros}>
         P{Math.round(meal.protein)} F{Math.round(meal.fat)} C{Math.round(meal.carbs)}
       </span>
-    </button>
+    </SelectableCard>
   )
 }
 
 function MacroInputs({ meal, onChange }: { meal: Meal; onChange: (key: MacroKey, value: number) => void }) {
-  return (
-    <div style={styles.macroInputGrid}>
-      {MACRO_FIELDS.map((field) => (
-        <label key={field.key} style={styles.macroInputWrap}>
-          <span style={{ ...styles.macroInputRail, background: field.color }} />
-          <span style={styles.inputLabel}>{field.label}</span>
-          <span style={styles.macroInputRow}>
-            <input
-              value={meal[field.key] || ''}
-              onChange={(event) => onChange(field.key, readNumericInput(event.target.value))}
-              inputMode="decimal"
-              aria-label={`${field.label} grams`}
-              style={styles.macroInput}
-            />
-            <span style={styles.macroUnit}>g</span>
-          </span>
-        </label>
-      ))}
-    </div>
-  )
+  return <MacroInputGrid values={meal} onChange={onChange} />
 }
 
 function ManualPresetChips({
@@ -849,6 +804,9 @@ const styles: { [key: string]: CSSProperties } = {
     fontWeight: 900,
     letterSpacing: 1.2,
   },
+  calorieMetric: {
+    marginTop: 8,
+  },
   calorieRow: {
     marginTop: 8,
     display: 'flex',
@@ -905,6 +863,12 @@ const styles: { [key: string]: CSSProperties } = {
   macroBarSegment: {
     height: '100%',
     display: 'block',
+  },
+  summaryMacroBar: {
+    marginTop: 18,
+  },
+  summaryMacroGrid: {
+    marginTop: 14,
   },
   summaryGrid: {
     marginTop: 14,

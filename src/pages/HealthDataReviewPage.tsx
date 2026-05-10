@@ -1032,17 +1032,6 @@ const styles: { [key: string]: CSSProperties } = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  tabActive: {
-    background: COLORS.primary,
-    color: COLORS.background,
-    border: '1px solid transparent',
-    fontWeight: 800,
-  },
-  tabInactive: {
-    background: 'transparent',
-    color: COLORS.textSecondary,
-    border: '1px solid transparent',
-  },
   periodBar: {
     margin: '0 0 18px',
     paddingBottom: 0,

@@ -3,6 +3,7 @@ import type { CSSProperties, FormEvent } from 'react'
 import { ActionButton } from '../ui/ActionButton'
 import { AppHeader, MoreDots } from '../ui/AppHeader'
 import { AppShell } from '../ui/AppShell'
+import { FixedInputBar } from '../ui/FixedInputBar'
 import { IconButton } from '../ui/IconButton'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { COLORS } from '../ui/tokens'
@@ -615,6 +616,35 @@ export default function HealthAssistantChat() {
 
             <PlanningIntakeCard />
 
+            <UserTurn time="21:02">ベンチプレス100kg上げたい</UserTurn>
+
+            <AssistantText>
+              いいですね。計画にするために、期限、現在地、週に使える日数、ベンチ頻度、制約を確認します。
+            </AssistantText>
+
+            <PlanRequirementCard />
+
+            <UserTurn time="21:04">6ヶ月で。今は67.5kgを8回、週4でトレーニングできて、ベンチは週2回。肩は問題ないです。</UserTurn>
+
+            <AssistantText>
+              条件が揃いました。推定1RMは約85.5kgなので、6ヶ月で100kgは現実的。ただし後半は停滞しやすいので、日付付きセッションと4週ごとの見直しで組みます。
+            </AssistantText>
+
+            <PlanCalculationCard />
+            <PlanMilestoneCard />
+            <DatedTrainingPlanCard />
+
+            <UserTurn time="21:07">体重も3ヶ月で5kg落としたい</UserTurn>
+
+            <AssistantText>
+              体重はRM計画とは別Planにします。まずカロリー収支を決めて、そこからPFC、最後に毎食のメニューへ落とします。
+            </AssistantText>
+
+            <BodyWeightPlanCard />
+            <CaloriePfcPlanCard />
+            <MealMenuPlanCard />
+            <AdjustmentPolicyCard />
+
             <div style={styles.quickActions}>
               <button type="button" onClick={() => sendQuickAction('6ヶ月でベンチプレス100kgを上げたい')} style={styles.chip}>ベンチ100kg</button>
               <button type="button" onClick={() => sendQuickAction('3ヶ月で体重を5kg減らしたい')} style={styles.chip}>減量計画</button>
@@ -656,19 +686,14 @@ export default function HealthAssistantChat() {
           )}
         </main>
 
-        <form style={styles.inputBarWrap} onSubmit={submitQuestion}>
-          <div style={styles.inputBar}>
-            <input
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              disabled={isThinking}
-              placeholder={getInputPlaceholder(assistantMode)}
-              style={styles.askInput}
-            />
-            <button type="button" style={styles.mic}>⌕</button>
-            <button type="submit" disabled={!draft.trim() || isThinking} style={draft.trim() && !isThinking ? styles.send : styles.sendDisabled}>↑</button>
-          </div>
-        </form>
+        <FixedInputBar
+          value={draft}
+          onChange={setDraft}
+          onSubmit={() => submitQuestion()}
+          disabled={isThinking}
+          placeholder={getInputPlaceholder(assistantMode)}
+          leftAction={<button type="button" style={styles.mic}>⌕</button>}
+        />
     </AppShell>
   );
 }
@@ -1272,6 +1297,318 @@ function PlanningIntakeCard() {
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+function PlanRequirementCard() {
+  const rows = [
+    { label: '期限', value: '未確認', state: 'ASK' },
+    { label: '現在地', value: '重量 × 回数', state: 'ASK' },
+    { label: '頻度', value: '週の日数 / ベンチ日', state: 'ASK' },
+    { label: '制約', value: 'ケガ・器具・曜日', state: 'ASK' },
+  ];
+
+  return (
+    <section style={styles.planBuilderCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>不足情報</span>
+        <span style={styles.workoutStatusPill}>4 slots</span>
+      </div>
+
+      <div style={styles.planSlotList}>
+        {rows.map((row) => (
+          <div key={row.label} style={styles.planSlotRow}>
+            <span style={styles.planSlotText}>
+              <strong style={styles.performanceTitle}>{row.label}</strong>
+              <span style={styles.workoutHint}>{row.value}</span>
+            </span>
+            <span style={styles.planSlotPill}>{row.state}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PlanCalculationCard() {
+  const metrics = [
+    { label: '推定1RM', value: '85.5kg', detail: '67.5kg × 8から算出' },
+    { label: 'Training Max', value: '77kg', detail: '推定1RMの90%' },
+    { label: '刻み', value: '2.5kg', detail: 'ジムのプレートに丸める' },
+  ];
+
+  return (
+    <section style={styles.planBuilderCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>決定計算</span>
+        <span style={styles.workoutStatusPill}>AUTO</span>
+      </div>
+
+      <div style={styles.planMetricGrid}>
+        {metrics.map((metric) => (
+          <div key={metric.label} style={styles.planMetric}>
+            <span style={styles.workoutMetricLabel}>{metric.label}</span>
+            <strong style={styles.planMetricValue}>{metric.value}</strong>
+            <span style={styles.workoutHint}>{metric.detail}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PlanMilestoneCard() {
+  const milestones = [
+    { date: '6/8', label: '推定1RM 88kg', diff: '+2.5kg' },
+    { date: '7/6', label: '推定1RM 91kg', diff: '+5.5kg' },
+    { date: '8/3', label: '推定1RM 94kg', diff: '+8.5kg' },
+    { date: '9/28', label: '推定1RM 98kg', diff: '+12.5kg' },
+    { date: '11/9', label: '100kg挑戦', diff: 'TEST' },
+  ];
+
+  return (
+    <section style={styles.planBuilderCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>RMマイルストーン</span>
+        <span style={styles.workoutStatusPill}>6 months</span>
+      </div>
+
+      <div style={styles.planTimeline}>
+        {milestones.map((milestone, index) => (
+          <div key={milestone.date} style={styles.planTimelineRow}>
+            <span style={index === 0 ? styles.planTaskIndexActive : styles.planTaskIndex}>{index + 1}</span>
+            <span style={styles.planSlotText}>
+              <strong style={styles.performanceTitle}>{milestone.date}</strong>
+              <span style={styles.workoutHint}>{milestone.label}</span>
+            </span>
+            <span style={styles.planSlotPill}>{milestone.diff}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DatedTrainingPlanCard() {
+  const sessions = [
+    {
+      date: '5/13',
+      title: 'Heavy Bench',
+      rows: ['Bench 67.5kg × 5 × 3', 'Paused Bench 57.5kg × 5 × 3', 'Row 42kg × 10 × 3'],
+    },
+    {
+      date: '5/17',
+      title: 'Volume Bench',
+      rows: ['Bench 62.5kg × 8 × 4', 'Incline DB 22kg × 10 × 3', 'Triceps Pressdown × 12 × 3'],
+    },
+    {
+      date: '5/20',
+      title: 'Technique',
+      rows: ['Close Grip Bench 60kg × 6 × 4', 'Cable Fly 18kg × 12 × 3', 'Face Pull × 15 × 3'],
+    },
+  ];
+
+  return (
+    <section style={styles.planBuilderCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>日付付きメニュー</span>
+        <span style={styles.workoutStatusPill}>NEXT 3</span>
+      </div>
+
+      <div style={styles.sessionPlanList}>
+        {sessions.map((session) => (
+          <div key={session.date} style={styles.sessionPlanItem}>
+            <div style={styles.sessionPlanHead}>
+              <span style={styles.sessionDate}>{session.date}</span>
+              <strong style={styles.performanceTitle}>{session.title}</strong>
+            </div>
+            <div style={styles.sessionExerciseList}>
+              {session.rows.map((row) => (
+                <span key={row} style={styles.sessionExercise}>{row}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function BodyWeightPlanCard() {
+  const milestones = [
+    { date: '6/8', value: '76.1kg', label: '週平均' },
+    { date: '7/6', value: '74.5kg', label: '週平均' },
+    { date: '8/3', value: '72.8kg', label: '週平均' },
+  ];
+
+  return (
+    <section style={styles.planBuilderCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>体重Plan</span>
+        <span style={styles.workoutStatusPill}>3 months</span>
+      </div>
+
+      <div style={styles.planMetricGrid}>
+        <div style={styles.planMetric}>
+          <span style={styles.workoutMetricLabel}>開始</span>
+          <strong style={styles.planMetricValue}>77.8kg</strong>
+          <span style={styles.workoutHint}>週平均</span>
+        </div>
+        <div style={styles.planMetric}>
+          <span style={styles.workoutMetricLabel}>目標</span>
+          <strong style={styles.planMetricValue}>72.8kg</strong>
+          <span style={styles.workoutHint}>-5.0kg</span>
+        </div>
+      </div>
+
+      <div style={styles.planTimeline}>
+        {milestones.map((milestone) => (
+          <div key={milestone.date} style={styles.planTimelineRow}>
+            <span style={styles.sessionDate}>{milestone.date}</span>
+            <span style={styles.planSlotText}>
+              <strong style={styles.performanceTitle}>{milestone.value}</strong>
+              <span style={styles.workoutHint}>{milestone.label}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div style={styles.planCheckpointList}>
+        <span style={styles.planCheckpoint}>P 150g/day</span>
+        <span style={styles.planCheckpoint}>週平均で判定</span>
+        <span style={styles.planCheckpoint}>筋力優先で急落禁止</span>
+      </div>
+    </section>
+  );
+}
+
+function CaloriePfcPlanCard() {
+  const macros = [
+    { label: 'P', value: 150, kcal: 600, color: COLORS.protein },
+    { label: 'F', value: 55, kcal: 495, color: COLORS.fat },
+    { label: 'C', value: 250, kcal: 1000, color: COLORS.carbs },
+  ];
+  const totalMacroKcal = macros.reduce((sum, macro) => sum + macro.kcal, 0);
+
+  return (
+    <section style={styles.planBuilderCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>カロリー / PFC</span>
+        <span style={styles.workoutStatusPill}>CUT</span>
+      </div>
+
+      <div style={styles.planMetricGrid}>
+        <div style={styles.planMetric}>
+          <span style={styles.workoutMetricLabel}>推定維持</span>
+          <strong style={styles.planMetricValue}>2,600kcal</strong>
+          <span style={styles.workoutHint}>体重・活動量から仮置き</span>
+        </div>
+        <div style={styles.planMetric}>
+          <span style={styles.workoutMetricLabel}>減量目標</span>
+          <strong style={styles.planMetricValue}>2,100kcal</strong>
+          <span style={styles.workoutHint}>約-500kcal/day</span>
+        </div>
+      </div>
+
+      <div style={styles.pfcPanel}>
+        <div style={styles.mealMacroHeader}>
+          <span style={styles.mealMacroTitle}>PFCバランス</span>
+          <span style={styles.mealMacroCalories}>2,095 kcal</span>
+        </div>
+        <div style={styles.mealMacroBar} aria-hidden="true">
+          {macros.map((macro) => (
+            <span
+              key={macro.label}
+              style={{ ...styles.mealMacroBarSegment, width: `${(macro.kcal / totalMacroKcal) * 100}%`, background: macro.color }}
+            />
+          ))}
+        </div>
+        <div style={styles.mealMacroGrid}>
+          {macros.map((macro) => (
+            <div key={macro.label} style={styles.mealMacroCell}>
+              <span style={{ ...styles.mealMacroDot, background: macro.color }} />
+              <span style={styles.mealMacroLabel}>{macro.label}</span>
+              <strong style={styles.mealMacroValue}>{macro.value}g</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MealMenuPlanCard() {
+  const meals = [
+    { label: '朝', kcal: '480kcal', pfc: 'P35 F12 C58', menu: '卵2個・オートミール60g・ヨーグルト' },
+    { label: '昼', kcal: '620kcal', pfc: 'P45 F14 C78', menu: '鶏むね180g・白米180g・サラダ' },
+    { label: '間', kcal: '220kcal', pfc: 'P25 F3 C24', menu: 'プロテイン・バナナ' },
+    { label: '夜', kcal: '780kcal', pfc: 'P45 F26 C90', menu: '鮭 or 鶏むね・白米200g・味噌汁・野菜' },
+  ];
+
+  return (
+    <section style={styles.planBuilderCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>毎食メニュー</span>
+        <span style={styles.workoutStatusPill}>2,100kcal</span>
+      </div>
+
+      <div style={styles.mealPlanList}>
+        {meals.map((meal) => (
+          <div key={meal.label} style={styles.mealPlanRow}>
+            <span style={styles.mealPlanLabel}>{meal.label}</span>
+            <span style={styles.planSlotText}>
+              <strong style={styles.performanceTitle}>{meal.menu}</strong>
+              <span style={styles.workoutHint}>{meal.kcal} · {meal.pfc}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div style={styles.planCheckpointList}>
+        <span style={styles.planCheckpoint}>外食日は主食量で調整</span>
+        <span style={styles.planCheckpoint}>トレ日もPは固定</span>
+        <span style={styles.planCheckpoint}>週平均体重で再計算</span>
+      </div>
+    </section>
+  );
+}
+
+function AdjustmentPolicyCard() {
+  const rules = [
+    '予定達成 + RPE 8以下: 次回は予定通り',
+    '予定達成 + RPE 9以上: 次回重量は据え置き',
+    '予定未達: 次回メイン種目を-2.5kg',
+    '予定日にできない: 今日へ移動 / 次回に統合 / スキップを選択',
+  ];
+
+  return (
+    <section style={styles.planBuilderCard}>
+      <div style={styles.workoutHeader}>
+        <span style={styles.workoutAiSpark}>AI</span>
+        <span style={styles.workoutTitle}>実績差分と予定変更</span>
+        <span style={styles.workoutStatusPill}>RULES</span>
+      </div>
+
+      <div style={styles.planRuleList}>
+        {rules.map((rule, index) => (
+          <div key={rule} style={styles.planTaskRow}>
+            <span style={index < 2 ? styles.planTaskIndexActive : styles.planTaskIndex}>{index + 1}</span>
+            <span style={styles.planTaskText}>{rule}</span>
+          </div>
+        ))}
+      </div>
+
+      <ActionButton variant="primary" style={styles.mealAddButton}>
+        RM計画と体重計画を登録
+      </ActionButton>
     </section>
   );
 }
@@ -2319,6 +2656,140 @@ const styles: { [key: string]: CSSProperties } = {
     alignContent: 'center',
     gap: 6,
     boxSizing: 'border-box',
+  },
+  planBuilderCard: {
+    margin: '12px 0 22px 40px',
+    padding: 14,
+    borderRadius: 18,
+    background: COLORS.surfaceRaised,
+    border: `1px solid ${COLORS.primary}44`,
+    display: 'grid',
+    gap: 10,
+    textAlign: 'left',
+  },
+  planSlotList: {
+    display: 'grid',
+    gap: 8,
+  },
+  planSlotRow: {
+    minHeight: 52,
+    padding: '10px 12px',
+    borderRadius: 16,
+    background: COLORS.surface,
+    border: `1px solid ${COLORS.borderStrong}`,
+    display: 'grid',
+    gridTemplateColumns: '1fr auto',
+    alignItems: 'center',
+    gap: 10,
+    boxSizing: 'border-box',
+  },
+  planSlotText: {
+    minWidth: 0,
+    display: 'grid',
+    gap: 4,
+  },
+  planSlotPill: {
+    padding: '6px 8px',
+    borderRadius: 999,
+    background: COLORS.surfaceMuted,
+    color: COLORS.primarySoft,
+    fontSize: 10,
+    fontWeight: 950,
+    whiteSpace: 'nowrap',
+  },
+  planTimeline: {
+    display: 'grid',
+    gap: 8,
+  },
+  planTimelineRow: {
+    minHeight: 54,
+    padding: '10px 12px',
+    borderRadius: 16,
+    background: COLORS.surface,
+    border: `1px solid ${COLORS.borderStrong}`,
+    display: 'grid',
+    gridTemplateColumns: 'auto 1fr auto',
+    alignItems: 'center',
+    gap: 9,
+    boxSizing: 'border-box',
+  },
+  sessionPlanList: {
+    display: 'grid',
+    gap: 10,
+  },
+  sessionPlanItem: {
+    padding: 12,
+    borderRadius: 16,
+    background: COLORS.surface,
+    border: `1px solid ${COLORS.borderStrong}`,
+    display: 'grid',
+    gap: 9,
+  },
+  sessionPlanHead: {
+    display: 'grid',
+    gridTemplateColumns: '42px 1fr',
+    gap: 9,
+    alignItems: 'center',
+  },
+  sessionDate: {
+    minWidth: 42,
+    minHeight: 26,
+    padding: '0 8px',
+    borderRadius: 999,
+    background: COLORS.surfaceMuted,
+    color: COLORS.primarySoft,
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: 11,
+    fontWeight: 950,
+    boxSizing: 'border-box',
+  },
+  sessionExerciseList: {
+    display: 'grid',
+    gap: 6,
+  },
+  sessionExercise: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 1.25,
+    fontWeight: 850,
+  },
+  planRuleList: {
+    display: 'grid',
+    gap: 8,
+  },
+  pfcPanel: {
+    padding: 14,
+    borderRadius: 16,
+    background: COLORS.surface,
+    border: `1px solid ${COLORS.borderStrong}`,
+  },
+  mealPlanList: {
+    display: 'grid',
+    gap: 8,
+  },
+  mealPlanRow: {
+    minHeight: 64,
+    padding: '10px 12px',
+    borderRadius: 16,
+    background: COLORS.surface,
+    border: `1px solid ${COLORS.borderStrong}`,
+    display: 'grid',
+    gridTemplateColumns: '34px 1fr',
+    alignItems: 'center',
+    gap: 10,
+    boxSizing: 'border-box',
+  },
+  mealPlanLabel: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: COLORS.surfaceMuted,
+    color: COLORS.primarySoft,
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: 13,
+    fontWeight: 950,
   },
   workoutCoachCard: {
     margin: '12px 0 22px 40px',

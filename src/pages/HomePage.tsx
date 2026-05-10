@@ -72,6 +72,12 @@ const shortcuts = [
     to: '/data-review',
     accent: COLORS.info,
   },
+  {
+    label: '後から記録',
+    description: 'カレンダーから食事とトレーニングを埋める',
+    to: '/history',
+    accent: COLORS.primary,
+  },
 ]
 
 export default function HomePage() {
