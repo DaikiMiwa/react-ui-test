@@ -1,25 +1,41 @@
 import type { CSSProperties } from 'react'
+import { AppHeader } from '../ui/AppHeader'
+import { AppMain } from '../ui/AppMain'
+import { AppShell } from '../ui/AppShell'
+import { IconButton } from '../ui/IconButton'
+import { SurfaceCard } from '../ui/SurfaceCard'
+import { COLORS } from '../ui/tokens'
 
 export default function SettingsPage() {
   return (
-    <div style={styles.wrap}>
-      <h1>Settings</h1>
-      <p>ここに設定系コンポーネントを追加していけばOKです。</p>
-    </div>
+    <AppShell>
+      <AppHeader
+        title="Settings"
+        subtitle="アプリ設定"
+        left={<IconButton to="/" ariaLabel="ホームへ戻る">‹</IconButton>}
+      />
+      <AppMain withBottomNav>
+        <SurfaceCard>
+          <h1 style={styles.title}>Settings</h1>
+          <p style={styles.text}>ここに設定系コンポーネントを追加していけばOKです。</p>
+        </SurfaceCard>
+      </AppMain>
+    </AppShell>
   )
 }
 
 const styles: { [key: string]: CSSProperties } = {
-  wrap: {
-    minHeight: '100vh',
+  title: {
     margin: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    color: '#fff',
-    background: '#050506',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif',
+    color: COLORS.textPrimary,
+    fontSize: 24,
+    fontWeight: 850,
+    letterSpacing: 0,
+  },
+  text: {
+    margin: '8px 0 0',
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 1.5,
   },
 }

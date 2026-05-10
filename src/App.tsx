@@ -2,6 +2,8 @@ import { Link, Route, BrowserRouter, Routes } from 'react-router-dom'
 import type { CSSProperties } from 'react'
 import HealthAssistantChatPage from './pages/HealthAssistantChatPage'
 import HomePage from './pages/HomePage'
+import HealthDataReviewPage from './pages/HealthDataReviewPage'
+import MealInputPage from './pages/MealInputPage'
 import SettingsPage from './pages/SettingsPage'
 import WorkoutSetLogPage from './pages/WorkoutSetLogPage'
 
@@ -10,7 +12,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/data-review" element={<HealthDataReviewPage />} />
         <Route path="/chat" element={<HealthAssistantChatPage />} />
+        <Route path="/meal" element={<MealInputPage />} />
         <Route path="/workout" element={<WorkoutSetLogPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<NotFound />} />

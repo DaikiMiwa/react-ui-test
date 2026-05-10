@@ -1,944 +1,896 @@
-# App Design System — Apple Health Inspired
-
-> 目的: Apple Health のような「清潔・信頼・静かな高級感」を持つ、ヘルスケア/ウェルネス系アプリ向けデザインシステム。  
-> 方針: Apple Health をコピーせず、iOS Human Interface Guidelines の考え方をベースに、白背景・大きな余白・丸いカード・控えめな色・データの読みやすさ・プライバシーへの安心感を中心に設計する。
-
+---
+version: alpha
+name: Workout Health UI
+description: Dark mobile health and workout interface for Apple Health-style home summaries, data review, workout set logging, warmups, rest, and history with a high-contrast training-focused visual system.
+colors:
+  primary: "#FF6B2C"
+  on-primary: "#FFFFFF"
+  background: "#050506"
+  surface: "#101012"
+  surface-raised: "#1C1C1F"
+  surface-muted: "#2A2A2E"
+  border: "#1B1B1E"
+  border-strong: "#2F2F35"
+  text-primary: "#FFFFFF"
+  text-secondary: "#A1A1AA"
+  text-muted: "#7C7C84"
+  inactive: "#8A8A93"
+  success: "#47D16C"
+  danger: "#C5162E"
+  health-red: "#FF375F"
+  health-orange: "#FF9F0A"
+  health-yellow: "#FFD60A"
+  health-green: "#32D74B"
+  health-blue: "#64D2FF"
+  health-purple: "#BF5AF2"
+  nutrition-protein: "#FF6B2C"
+  nutrition-fat: "#FFB15C"
+  nutrition-carbs: "#FF8A6A"
+  nutrition-saved: "#FFB38A"
+typography:
+  display:
+    fontFamily: SF Pro Display
+    fontSize: 2rem
+    fontWeight: 700
+    lineHeight: 1.08
+    letterSpacing: -0.04em
+  title:
+    fontFamily: SF Pro Display
+    fontSize: 1.35rem
+    fontWeight: 700
+    lineHeight: 1.16
+    letterSpacing: -0.03em
+  section:
+    fontFamily: SF Pro Text
+    fontSize: 0.82rem
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: 0.08em
+  body:
+    fontFamily: SF Pro Text
+    fontSize: 0.95rem
+    fontWeight: 500
+    lineHeight: 1.45
+  meta:
+    fontFamily: SF Pro Text
+    fontSize: 0.72rem
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: 0.08em
+  metric:
+    fontFamily: SF Pro Display
+    fontSize: 1.6rem
+    fontWeight: 800
+    lineHeight: 1
+    letterSpacing: -0.04em
+rounded:
+  sm: 10px
+  md: 14px
+  lg: 18px
+  xl: 24px
+  pill: 999px
+spacing:
+  xs: 4px
+  sm: 8px
+  md: 12px
+  lg: 18px
+  xl: 24px
+  page-x: 18px
+  phone-max: 430px
+screens:
+  home:
+    intent: "Daily training and nutrition cockpit for deciding exactly what workout to do, exactly what to eat, how far today has progressed, and which action to take next. It should serve the app workflow rather than imitate Apple Health."
+    layout: "Centered 430px by 820px phone frame matching the chat screen, with a fixed iOS-like header, scrollable action-oriented content, a dominant today plan card that immediately shows training and meal focus cards, separate training and meal progress sections, task lists, direct CTAs, and an absolute bottom navigation bar."
+    visualRules: "Use the same black phone shell, 24px device radius, raised dark cards, strong card borders, deep shadows, and orange primary accent as the chat page. Use secondary category colors only to clarify data signals or destinations."
+    interactionRules: "Primary actions should let users start workout logging and decide the next meal. Secondary actions should support reviewing progress data or asking the AI coach. The active bottom tab uses a muted gray selected surface while inactive tabs stay transparent and subdued."
+  meal-input:
+    intent: "Fast meal logging screen for saving each meal as MEAL 1, MEAL 2, and so on with P/F/C grams plus a natural-language food memo."
+    layout: "Centered 430px by 820px phone frame with the shared header, a daily PFC summary, horizontal meal picker, active meal editor, and today's saved meal log in one scrollable column."
+    visualRules: "Reuse the Workout dark surfaces, orange active state, and strong numeric hierarchy. Keep meal logging orange-based: P/F/C use orange-family tonal differences instead of green, yellow, and blue category colors."
+    interactionRules: "Selecting a meal changes the active editor. Save Meal commits the current PFC and memo, while + Meal appends a new draft meal without leaving the screen."
+  health-assistant-chat:
+    intent: "Assistant hub split into three adjacent modes: Normal for food, body condition, weight trend graphs, historical performance-data conversation, meal parsing, and goal-achievability checks; Plan Chat for long-range goal planning; and Training for live workout guidance and set logging. Goals such as bench press milestones, bodyweight change, or body-fat targets belong in Plan Chat before being folded back into the active plan summary."
+    layout: "Centered 430px by 820px phone frame with the shared header, a compact top segmented switch for Normal / Plan Chat / Training with enough horizontal tab padding for Japanese labels, scrollable mode-specific content, assistant analysis cards aligned to assistant text, right-aligned human bubbles, quick prompt chips, goal-planning cards, and a fixed bottom natural-language input in all modes."
+    visualRules: "Follow Workout colors. Training-mode cards use background, surface, surface-raised, surface-muted, border, border-strong, primary, text, and success only. Do not introduce coach-specific category colors for workout guidance."
+    interactionRules: "The top segmented switch is the primary boundary between normal chat, planning chat, and live training. Normal handles meals, body condition, weight trends with chart cards, historical workout-performance analysis, natural-language meal logging cards, and goal-achievability checks; it should redirect active workout progression to Training and goal-plan creation to Plan Chat. Training guidance must read from the same planned Push Day structure as WorkoutSetLogPage: Bench Press warmups and sets, then Incline Dumbbell Press, then Cable Fly. The visible Training flow should cover workout start, exercise instruction, exercise selection, warmup start, warmup completion, each set start, each set result, rest start, rest completion, final set completion, exercise completion, next-exercise proposal, next-exercise availability confirmation, and the first set flow for the next exercise. Warmups should be represented as a checklist inside the assistant card; assistant copy should tell the user to check completed rows instead of sending a completion message. Checking every warmup completes the warmup block, and the skip action allows the user to bypass warmups and proceed to the first working set. If the user attempts to start another exercise while the current exercise has incomplete working sets, Training must mirror WorkoutSetLogPage's pending-exercise guard: show an in-chat confirmation with Complete & Open, Open Anyway, and Stay options before changing the active exercise. Goal-planning utterances in Plan Chat should return an assistant plan card that separates goal, horizon, baseline, target, phases, checkpoints, weekly focus, and a concrete next daily action before allowing the user to add it to the execution plan."
+components:
+  header-bar:
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.text-primary}"
+    typography: "{typography.title}"
+    height: "112px"
+  set-table-header:
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.primary}"
+    typography: "{typography.section}"
+    padding: "{spacing.sm}"
+  metric-chip:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    typography: "{typography.metric}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.md}"
+  app-shell:
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.text-primary}"
+    typography: "{typography.body}"
+    padding: "0px"
+  phone-frame:
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.text-primary}"
+    rounded: "0px"
+    width: "{spacing.phone-max}"
+  home-shell:
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.page-x}"
+  home-hero-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.lg}"
+  home-command-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.lg}"
+  home-focus-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  home-favorite-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.md}"
+  home-signal-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  home-workout-plan-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.md}"
+  home-coach-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.md}"
+  home-highlight-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.md}"
+  home-quick-link:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.md}"
+  home-tab-active:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.pill}"
+    padding: "{spacing.sm}"
+  home-tab-inactive:
+    backgroundColor: "transparent"
+    textColor: "{colors.inactive}"
+    rounded: "{rounded.pill}"
+    padding: "{spacing.sm}"
+  session-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.lg}"
+  exercise-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.lg}"
+  exercise-card-active:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.on-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.lg}"
+  tab-active:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.pill}"
+    padding: "10px"
+  tab-inactive:
+    backgroundColor: "{colors.border-strong}"
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.pill}"
+    padding: "10px"
+  set-row-active:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.md}"
+  set-row-inactive:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.inactive}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.md}"
+  warmup-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  warmup-card-active:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  logging-card:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.lg}"
+  note-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-muted}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  rest-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  goal-plan-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  assistant-mode-switch:
+    backgroundColor: "{colors.border-strong}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.pill}"
+    padding: "2px 12px"
+  normal-overview-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  normal-insight-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  weight-trend-chart:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.sm}"
+    requiredElements: "Visible y-axis label in kg, y-axis tick labels, x-axis week labels, baseline axes, grid lines, plotted data line, latest value callout."
+  goal-outlook-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  active-plan-strip:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  plan-summary-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  plan-intake-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  goal-plan-hero:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  goal-plan-phase:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.sm}"
+  goal-plan-phase-active:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.sm}"
+  data-shell:
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.text-primary}"
+    rounded: "0px"
+    padding: "0px"
+  data-section-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.lg}"
+  data-summary-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.lg}"
+  data-metric-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  data-display-settings:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.lg}"
+  data-checkbox-chip:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.md}"
+  data-exercise-filter:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.lg}"
+  data-rm-progress-card:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  data-rm-status-badge:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.success}"
+    rounded: "{rounded.pill}"
+    padding: "6px"
+  data-trend-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  data-tab:
+    backgroundColor: "{colors.border-strong}"
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.pill}"
+    padding: "10px"
+  data-tab-active:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.pill}"
+    padding: "10px"
+  data-period-chip:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.pill}"
+    padding: "0 10px"
+  data-chart-weight:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.health-red}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  data-chart-calorie:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.health-orange}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  data-chart-energy:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.health-yellow}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  data-chart-body-composition:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.health-purple}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  data-chart-water:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.health-blue}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  data-chart-recovery:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.health-green}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  next-ready-card:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.success}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  history-panel:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.lg}"
+  history-row:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.md}"
+  complete-state:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.success}"
+    typography: "{typography.title}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.xl}"
+  secondary-action:
+    backgroundColor: "{colors.border-strong}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.pill}"
+    padding: "12px"
+  ghost-action:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.pill}"
+    padding: "10px"
+  danger-action:
+    backgroundColor: "{colors.danger}"
+    textColor: "{colors.on-primary}"
+    rounded: "{rounded.pill}"
+    padding: "12px"
+  meal-summary-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.lg}"
+  meal-picker-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-picker-card-active:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-editor-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.lg}"
+  meal-entry-mode:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.pill}"
+    padding: "{spacing.sm}"
+  meal-manual-preset:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.nutrition-protein}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-manual-preset-editor:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-macro-input:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-macro-protein:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.nutrition-protein}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-macro-fat:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.nutrition-fat}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-macro-carbs:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.nutrition-carbs}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-saved-state:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.nutrition-saved}"
+    rounded: "{rounded.pill}"
+    padding: "{spacing.sm}"
+  meal-note-input:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-ai-suggestion:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-log-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  meal-save-action:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.background}"
+    rounded: "{rounded.pill}"
+    padding: "12px"
+  assistant-workout-card:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  assistant-workout-focus:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  assistant-workout-active-step:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.sm}"
+  assistant-warmup-check-row:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  assistant-warmup-check-row-done:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  assistant-warmup-skip-action:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-secondary}"
+    rounded: "{rounded.pill}"
+    padding: "{spacing.sm}"
+  assistant-exercise-switch-guard:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.md}"
+  assistant-exercise-switch-action:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.pill}"
+    padding: "{spacing.sm}"
+  assistant-exercise-switch-action-active:
+    backgroundColor: "{colors.surface-muted}"
+    textColor: "{colors.primary}"
+    rounded: "{rounded.pill}"
+    padding: "{spacing.sm}"
+  bottom-bar:
+    backgroundColor: "{colors.border}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.xl}"
+    padding: "{spacing.md}"
 ---
 
-## 1. Design Principles
+## Overview
 
-### 1.1 Quiet Confidence
-医療・健康領域では、UIが主張しすぎないことが信頼につながる。装飾よりも情報の読みやすさ、状態の理解しやすさ、安心感を優先する。
+Workout Set Log は、筋トレ中に片手で「次に何をするか」「今どこまで終わったか」を迷わず判断するためのモバイルUIです。黒に近い背景、厚みのあるカード、オレンジのアクティブカラーで、ジム環境でも情報の優先順位が崩れない設計にします。
 
-- 背景は基本的に白またはごく淡いグレー
-- 重要な数値だけを大きく表示
-- 色は状態・カテゴリ・行動の意味づけに限定
-- 不安を煽る赤や警告表現は最小限にする
+画面は `src/pages/WorkoutSetLogPage.tsx` の `screen='list'` と `screen='active'` を中心に構成します。リスト画面は種目選択とワークアウト全体の進行確認、アクティブ画面は1種目ごとのセット記録、ウォームアップ、休憩、履歴確認に集中します。
 
-### 1.2 Health at a Glance
-ユーザーは長い文章よりも「今どうなのか」を知りたい。カード、サマリー、トレンド、リング、バー、ミニチャートで即時理解できる構造にする。
+このデザインの主役は装飾ではなく、トレーニング中の判断速度です。強いコントラスト、太い数値、丸みのある操作面、状態ごとの色差で、疲労下でも誤タップや読み間違いを減らします。
 
-- ファーストビューには今日の状態を集約
-- 各カードは1つの目的に限定
-- 詳細情報はタップ後に段階的に開示
-- 長期トレンドは7日 / 30日 / 90日で切り替え
+## Colors
 
-### 1.3 Human, Not Clinical
-医療的な正確さは保ちつつ、病院の管理画面のような冷たさは避ける。
+カラーパレットはダークトーンを基盤に、アクティブ状態だけを `primary` のオレンジで強く浮かせます。種目ごとの色分けは行わず、色は状態の意味を伝えるために使います。
 
-- 文言は短く、肯定的で、判断を押し付けない
-- 「異常です」より「いつもより高めです」
-- 「失敗」より「今日はまだ記録がありません」
-- ユーザーを責めないトーンにする
+- `background` はページ全体とスマホ枠の基調色です。限りなく黒に近い `#050506` を使い、カードの面を浮かせます。
+- `surface`, `surface-raised`, `surface-muted` はカード階層です。リストカード、ログ入力、休憩カードなどで段差を作ります。
+- `primary` はアクティブセット、`RESTING`、タブ選択、重要CTAに使います。Workout画面では `#FF6B2C` が現在のアクティブセット色です。
+- `nutrition-protein`, `nutrition-fat`, `nutrition-carbs`, `nutrition-saved` は食事入力画面だけで使うオレンジ系トーンです。P/F/Cの識別は色相を散らさず、オレンジの濃淡、ラベル、配置で行います。
+- `inactive` は未アクティブまたは優先度の低いセット行に使います。現在値は `#5F5F67` です。
+- `success` は次セット準備完了や完了状態の補助表現に限定します。
+- `danger` は休憩停止や破壊的操作のみに使い、通常のログ導線では使いません。
+- `health-red`, `health-orange`, `health-yellow`, `health-green`, `health-blue`, `health-purple` はデータ確認画面のヘルスカテゴリ色です。Apple Health のように指標カテゴリをすばやく見分ける用途に限定し、カード背景や大面積の塗りには使いません。
 
-### 1.4 Privacy First
-健康データは非常にセンシティブ。プライバシー保護をUIの一部として明示する。
+実装で `rgba(255,255,255,0.08)` のような半透明境界を使う場合も、DESIGN.md のトークンではhex値を基準にし、透明度はコンポーネントの文脈で補足します。
 
-- 権限要求は必要なタイミングで説明してから行う
-- 共有・同期・外部送信の有無を明確に表示
-- 設定画面に「データとプライバシー」を独立して配置
-- データ削除・エクスポート導線を隠さない
+## Typography
 
----
+タイポグラフィは iOS ライクなサンセリフを前提に、数値と状態ラベルをすばやく読めるようにします。画面内では英語ラベルと日本語説明が混在するため、太さと字間で役割を分けます。
 
-## 2. Visual Direction
+- `display` はワークアウト名や大きな状態表示に使います。詰まった字間で、スポーツアプリらしい密度を出します。
+- `title` は種目名、カードタイトル、`Exercise Complete` などの見出しに使います。
+- `section` は `SET`, `PLAN`, `ACTUAL`, `CHECK`, `NEXT SET`, `CURRENTLY ACTIVE` などの短い大文字ラベルに使います。
+- `body` は説明文、前回実績、ノート本文に使います。
+- `meta` は補助情報、進行率、タブ内の小さな注記に使います。
+- `metric` は重量、回数、休憩タイマーなど、瞬時に読む必要がある数字に使います。
 
-### 2.1 Keywords
+## Layout
 
-- Clean
-- Calm
-- Personal
-- Trustworthy
-- Data-rich but not dense
-- Soft contrast
-- Native iOS feel
-- Gentle motion
+モバイルファーストで、スマホ枠は最大 `430px`、左右余白は `18px` を基本にします。主要な操作は親指が届きやすい下部またはカード内右側に寄せます。
 
-### 2.2 Overall Look
+リスト画面は、ヘッダー、セッションカード、種目カード群、固定ボトムバーで構成します。タブは持たず、種目を選んでアクティブ画面へ移動する流れに集中します。
 
-Apple Health 風の雰囲気は、以下の組み合わせで表現する。
+アクティブ画面は、ヘッダー、ステータスカード、`Sets` / `History` タブ、セットテーブルまたは履歴パネルで構成します。未完了時は現在セットのプランを上部に表示し、休憩中は `RESTING` と次セット情報に表示を切り替えます。
 
-| Element | Direction |
-|---|---|
-| Background | Warm white / soft system gray |
-| Cards | Rounded, spacious, lightly elevated or separated by background contrast |
-| Typography | Large numeric hierarchy, compact labels |
-| Iconography | SF Symbols-like line icons, rounded and simple |
-| Color | Category-based accent colors; avoid rainbow overload |
-| Charts | Minimal axes, subtle grid, emphasis on trend |
-| Motion | Soft transitions, no flashy effects |
+セットテーブルは `SET / PLAN / ACTUAL / CHECK` の4列を固定します。テーブル上部には対象種目名を左寄せで表示し、`primary` で強調します。カード見出しは原則左揃えです。
 
----
+下部固定バーはリスト画面でのみ `+ Exercise` と `Finish Workout` を表示します。アクティブ画面ではセット操作に集中させ、画面内カードのCTAを主導線にします。
 
-## 3. Color System
+## Elevation & Depth
 
-### 3.1 Core Palette
+深い背景に対してカードを少しずつ明るくし、シャドウよりも面色と境界で階層を表現します。暗いジムや屋外でもギラつかないよう、境界は低コントラストに保ちます。
 
-```css
---color-bg-primary: #FFFFFF;
---color-bg-secondary: #F5F5F7;
---color-bg-tertiary: #EFEFF4;
+- 最背面は `background`。
+- 通常カードは `surface`。
+- 操作可能なカードや種目カードは `surface-raised`。
+- 入力中、休憩中、次セット準備完了などの展開カードは `surface-muted`。
+- 境界は `border` と `border-strong` を使い、必要な箇所のみ半透明の白境界に近い表現を加えます。
 
---color-text-primary: #111111;
---color-text-secondary: #6E6E73;
---color-text-tertiary: #8E8E93;
---color-text-inverse: #FFFFFF;
+カードは影で浮かせすぎず、厚い角丸と濃淡で「押せる面」を作ります。これにより、画面の密度を保ちながらもトレーニング中の視線移動を短くできます。
 
---color-separator: rgba(60, 60, 67, 0.18);
---color-card-border: rgba(60, 60, 67, 0.10);
-```
+## Shapes
 
-### 3.2 Health Category Colors
+角丸は大きめに統一します。Workout画面ではカード、タブ、ボタンがすべて手に馴染む物理的な操作面として見えることが大事です。
 
-Apple Health っぽさを出すため、赤をブランドカラーとして多用しすぎず、カテゴリ別に穏やかなアクセントを使う。
+- `sm` は小さな入力面、インラインチップ、数値セルに使います。
+- `md` はセット行や小カードに使います。
+- `lg` は展開カード、種目カード、ノートカードに使います。
+- `xl` はセッションカードやボトムバーなど、画面を支える大きな面に使います。
+- `pill` はタブ、バッジ、主要ボタンに使います。
 
-```css
---color-heart: #FF3B30;      /* 心拍・循環 */
---color-activity: #FF2D55;   /* 活動・リング */
---color-sleep: #5E5CE6;      /* 睡眠 */
---color-mind: #34C759;       /* メンタル・呼吸 */
---color-nutrition: #FF9500;  /* 食事・栄養 */
---color-water: #0A84FF;      /* 水分 */
---color-medical: #30B0C7;    /* 医療記録 */
-```
+直角のUIは避けます。筋トレ記録は反復操作が多いため、角丸によって押下対象を視覚的にやわらげ、疲労時の緊張感を下げます。
 
-### 3.3 Semantic Colors
+## Components
 
-```css
---color-success: #34C759;
---color-warning: #FF9F0A;
---color-danger: #FF453A;
---color-info: #0A84FF;
-```
+共通UIは `src/ui` 配下を優先して使います。新しいページや既存ページの外枠を触るときは、ページごとに `page`, `phone`, `header`, `circleButton`, `tab`, `bottomBar`, `progressTrack`, `statusPill`, `primaryButton`, `cardHeader`, `metricChip` を再定義せず、まず `tokens.ts`, `AppShell`, `AppMain`, `AppHeader`, `IconButton`, `ActionButton`, `SegmentedControl`, `BottomTabBar`, `BottomActionBar`, `ProgressBar`, `SectionHeader`, `StatusPill`, `SurfaceCard`, `CardHeader`, `MetricChip` で表現できるか確認します。
 
-### 3.4 Color Usage Rules
+`tokens.ts` は色、フォント、スマホ枠寸法の実装上の参照元です。色の追加や意味変更を行う場合は、この DESIGN.md の Color System と `tokens.ts` を同じ作業で更新します。画面固有の色は、カテゴリや状態を説明できるものだけを追加し、単なる微調整用のローカル色は増やしません。
 
-- Primary action は1画面に1つまで
-- 健康指標のカテゴリ色は、アイコン・チャート・小さなバッジに使う
-- 背景全面に強い色を敷かない
-- 危険色は本当に重要な警告だけに使う
-- ダークモードでは彩度をやや下げ、背景とのコントラストを確保する
-
----
+`AppShell` は全ページ共通の黒背景、最大430pxのスマホ枠、主要導線の `BottomTabBar` を担います。スクロールは原則としてスマホ枠全体ではなく、ページ内の `main` 領域に閉じ込めます。ページ固有に `display: flex` や角丸差分が必要な場合は `phoneStyle` で補足し、外側の構造は変えません。
 
-## 4. Typography
-
-### 4.1 Font
-
-- iOS: SF Pro / system font
-- Android: Roboto / system font
-- Web: `-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif`
-
-```css
-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-```
+`AppMain` はヘッダー下のスクロール領域です。通常は高さ `708px`、左右余白 `18px` を維持します。下部ナビを持つ画面では `withBottomNav` を使い、最後のカードが `BottomTabBar` に隠れない余白を確保します。
 
-### 4.2 Type Scale
-
-| Token | Size | Weight | Use |
-|---|---:|---:|---|
-| Display | 40 | 700 | 今日の主要スコア・大きな数値 |
-| Large Title | 34 | 700 | 画面タイトル |
-| Title 1 | 28 | 700 | セクションの重要タイトル |
-| Title 2 | 22 | 700 | カードタイトル |
-| Headline | 17 | 600 | 主要ラベル |
-| Body | 17 | 400 | 本文 |
-| Callout | 16 | 400 | 補足説明 |
-| Footnote | 13 | 400 | メタ情報 |
-| Caption | 12 | 400 | 単位・注釈 |
+`AppHeader` は戻る導線、中央タイトル、補助サブタイトル、右上アクションをまとめます。戻るボタンや右上ボタンは `IconButton` を使い、サイズは50pxの丸ボタンで揃えます。ヘッダー内には主要フォームや大きな状態表示を置かず、現在画面の認知と補助操作だけに絞ります。
 
-### 4.3 Numeric Typography
+`ActionButton` は主要CTA、補助CTA、リンク型CTAの共通ボタンです。`primary` は画面内の最重要操作、`secondary` は通常操作、`ghost` は控えめな補助操作、`danger` は停止や破壊的操作だけに使います。ページ側では `primaryButton` / `secondaryButton` を新規に増やさず、サイズや配置だけをコンテナ側で調整します。
 
-健康アプリでは数値が主役。数値は大きく、単位は小さく、意味は近くに置く。
+`SegmentedControl` は Workout の `Sets / History`、Data Review のカテゴリ切替、Meal の入力モード切替の共通パターンです。背景は `border-strong`、選択中は `surface-muted` と `text-primary`、未選択は透明背景と `text-secondary` を使います。タブ選択は現在位置の表示に留め、`primary` のオレンジはCTAやアクティブセットなど行動・記録対象の強調へ残します。タブの中で長い説明文を表示せず、短いラベルだけにします。
 
-例:
+`BottomTabBar` は主要5導線（今日、データ、コーチ、食事、記録）の共通ナビゲーションです。`AppShell` から全ページに表示し、現在パスに応じて選択状態を自動で決めます。選択中タブはグレーの選択面にし、オレンジの主CTAと競合させません。ページ固有の下部ナビを増やさず、主要導線を変更する場合は `BottomTabBar` の定義を更新します。
 
-```text
-72 bpm
-心拍数
-安静時として通常範囲です
-```
-
-Rules:
+`BottomActionBar` は画面内の下部アクションを横並びでまとめる共通バーです。Workout リスト画面の `+ Exercise` / `Finish Workout` のようなページ内操作に使い、アプリ主要導線の `BottomTabBar` とは分けて扱います。中身は `ActionButton` を使い、バー自体は配置、列数、gapだけを担います。
 
-- 数値: Display / Title 1
-- 単位: Caption / Footnote
-- ラベル: Footnote, secondary color
-- 解釈: Body or Callout
+`ProgressBar` は達成率、PFC進捗、セット進行などの横棒表現に使います。背景は `surface-muted`、fill は文脈のアクセント色を渡します。値は0〜100に丸め、ページ側で幅計算用の独自spanを作らないようにします。
 
----
+`SectionHeader` はセクションタイトルと右側の補助アクションをまとめます。ページごとに見出しサイズや余白を再定義せず、`title` と `action` で構成します。
 
-## 5. Spacing & Layout
+`StatusPill` は保存状態、進捗数、軽いステータス表示に使います。通常は `surface-raised` と `border-strong`、強調時のみ `primary` または `success` のborder/textを使います。大きなCTAや破壊的操作には使いません。
 
-### 5.1 Spacing Tokens
+`SurfaceCard` は設定画面や今後の単純な読み取りカードで使う共通カード面です。複雑なドメインカードはページ固有スタイルを許容しますが、背景、境界、角丸、影は `SurfaceCard` と同じ階層に合わせます。
 
-```css
---space-2: 2px;
---space-4: 4px;
---space-8: 8px;
---space-12: 12px;
---space-16: 16px;
---space-20: 20px;
---space-24: 24px;
---space-32: 32px;
---space-40: 40px;
-```
+`CardHeader` はカード内のタイトル行と右側メタ/バッジをまとめます。Data Review、Chat内チャートカード、AI解析カードなど読み取りカードでは `CardHeader` を使い、カードごとの見出し余白や横並びを再定義しません。
 
-### 5.2 Layout Rules
+`MetricChip` は Data Review の最新値、合計、差分のような短い数値サマリーに使います。`label`, `value`, `delta`, `color` で構成し、カード内で複数並ぶ小さな数値面の見た目を揃えます。
 
-- 画面左右余白: 16px〜20px
-- カード内余白: 16px〜20px
-- セクション間: 24px〜32px
-- カード間: 12px〜16px
-- タップ領域: 最低44px
+`ExerciseListCard` は `exercise.name`, `exercise.target`, `exercise.previous` を表示します。右上には完了数/合計セットのバッジを置き、未完了なら `NEXT SET`、完了なら `COMPLETED`、現在対象なら `CURRENTLY ACTIVE` を表示します。ボタン文言は常に `Open` とし、開始やレビューの判断はアクティブ画面側に寄せます。
 
-### 5.3 Screen Structure
+`ActiveExerciseScreen` の上段ステータスカードは、通常時に `Set X` と予定重量・回数を表示します。休憩中は `RESTING` に切り替え、タイトル下に `Next: kg x reps` 形式で次セットを示します。全セット完了時は `Exercise Complete` を表示します。
 
-```text
-[Large Title]
-[Today Summary Card]
-[Primary Metrics Grid]
-[Trends]
-[Recommendations]
-[Data & Privacy / Settings]
-```
-
----
-
-## 6. Radius, Elevation, Border
-
-### 6.1 Radius Tokens
+`header-bar` は画面上部の固定的な認知レイヤーです。リスト画面ではワークアウト全体、アクティブ画面では現在種目への帰属を示します。高さは `112px` を基準にし、タイトルと補助アクションが詰まりすぎないようにします。
 
-```css
---radius-sm: 8px;
---radius-md: 12px;
---radius-lg: 16px;
---radius-xl: 22px;
---radius-pill: 999px;
-```
+`set-table-header` はセットテーブル上部の種目名と列ラベルに使います。背景は追加のカード面を作らず、`primary` の文字色で現在の記録対象だけを浮かせます。
 
-### 6.2 Component Radius
+`metric-chip` は重量、回数、残り時間のような一瞬で読みたい数値を収める小さな面です。`typography.metric` を使い、説明ラベルよりも数字が先に見えるバランスにします。
 
-| Component | Radius |
-|---|---:|
-| Small badge | Pill |
-| Button | 12〜16px |
-| Metric card | 18〜22px |
-| Modal sheet | 24px top corners |
-| Chart container | 18〜22px |
+`SetRow` は4列固定です。未完了セルは `Log Set`、完了セルは実績重量・回数を表示します。アクティブ行は `set-row-active`、非アクティブ行は `set-row-inactive` を使い、色だけでなく背景面でも差を出します。
 
-### 6.3 Elevation
+`warmup-card` と `warmup-card-active` はウォームアップセットに使います。メインセットより少し控えめに見せつつ、実行中のウォームアップだけは `warmup-card-active` で操作対象として明確にします。
 
-Apple系UIでは強い影よりも面の分離が自然。影は控えめにし、背景差と境界線で分ける。
+`loggingCard` は `SET N LOGGING` を見出しにし、Weight / Reps を入力面として見せます。`Complete Set` は主CTAとして扱い、完了後は行を実績表示へ切り替えます。現状実装では完了時に予定値を実績値として反映します。
 
-```css
---shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
---shadow-floating: 0 8px 32px rgba(0,0,0,0.10);
-```
+`noteCard` は行を開いたときに表示します。ノート本文と `Edit` ボタンを置きますが、現在は編集処理の本体は未実装です。見た目は補助カードとして控えめにし、セット記録より強く見せません。
 
----
+`inlineRestCard` は休憩中に表示します。左側にタイマー、右側に `Stop` と `Done` のアクションを並べ、残り時間の左右に時間調整ボタンを置きます。カードタイトルは `REST AFTER SET` とし、休憩操作がセット行の流れから外れないようにインラインで表示します。
 
-## 7. Iconography
+`nextReadyCard` は休憩完了後に表示します。次セットの準備ができたことを `success` で補助しつつ、主導線は `Log Set` または `Add Rest` にします。
 
-### 7.1 Direction
+`ExerciseHistoryPanel` は `History` タブで表示します。対象種目名、前回実績、完了済みセット一覧をカード形式で表示します。完了履歴がまだない場合は、空状態として案内文を表示します。
 
-- SF Symbolsに近い、シンプルな線形アイコン
-- 角は丸める
-- 1つのアイコンに複数の意味を持たせない
-- カテゴリ色と組み合わせて使う
+`history-panel` と `history-row` は履歴タブの読み取り専用領域に使います。ここでは新しい操作を増やさず、前回実績と今回完了済みセットの比較を落ち着いて読める密度にします。
 
-### 7.2 Recommended Symbols
+`complete-state` は種目完了時の終端表示です。強い成功色を使いすぎず、完了したことと次の行動に移れることを短く伝えます。
 
-| Category | Symbol Idea |
-|---|---|
-| Heart | heart.fill / heart.text.square |
-| Activity | figure.walk / flame.fill |
-| Sleep | moon.fill / bed.double.fill |
-| Mind | brain.head.profile / wind |
-| Nutrition | fork.knife / leaf.fill |
-| Water | drop.fill |
-| Medical | cross.case.fill / stethoscope |
-| Privacy | lock.shield.fill |
+`secondary-action` は `Open`, `Add Rest`, `Edit` などの補助CTAに使います。`ghost-action` は時間調整や控えめな補助操作に使い、主CTAと競合しないようにします。
 
-### 7.3 Icon Usage
+## Data Review Screen (データ確認)
 
-- サイズ: 20px / 24px / 32px
-- カードアイコンは淡い色の円形背景に置く
-- ナビゲーションアイコンは単色
-- 警告アイコンはテキスト説明と必ずセットにする
+データ確認画面は、身体測定、食事、トレーニングを同じ時系列文脈で観察する画面として設計します。Workout / Chat と同じ黒基調を維持しつつ、Apple Health のようなグループカード、控えめな区切り、色付きのカテゴリ指標で「読み取り専用のヘルスダッシュボード」に寄せます。
 
----
+`data-shell` と `data-section-card` で全体を統一し、カテゴリ切替→指標サマリー→時系列ライン→明細の順で読む導線にします。
 
-## 8. Core Components
+### Data Review レイアウト指針
 
-## 8.1 Metric Card
+- `header` は画面種別の識別と戻り導線だけを担い、主要情報はカード内にまとめる。
+- `data-tab` と `data-tab-active` で3カテゴリ（身体指標、食事、トレーニング）を1回タップで切り替える。Workout / Meal と同じ共有 `SegmentedControl` を使い、36px高、2px gap、14px文字、`border-strong` のpill背景、`surface-muted` の選択状態で統一する。
+- `data-period-chip` で 7日 / 12日 / 30日 / 90日 を切り替え、全カテゴリで同じデータレンジを参照できるようにする。期間チップは4等分グリッドで並べ、横幅とgapを揃える。
+- データ確認画面も Workout / Chat と同じ `phone-frame` 内に表示し、スマホ枠の外ではなくメインデータ領域だけを縦スクロールさせる。ヘッダー、カテゴリタブ、期間切替は端末フレーム内の認知レイヤーとして残す。
+- `data-display-settings` は期間切替の直下に置き、計画ラインと目標ラインをチェックボックスで表示 / 非表示できるようにする。
 
-健康データの最小単位。
+### Data Review コンポーネント指針
 
-```text
-┌────────────────────────┐
-│ ❤️  心拍数              │
-│                        │
-│ 72 bpm                 │
-│ 通常範囲です            │
-│              ›          │
-└────────────────────────┘
-```
+- 身体指標は `data-summary-card` で最新値を先頭提示し、主要数値を短く読める形で並べる。カードの中にさらに強いカードを入れず、区切り線と余白で Apple Health らしいグループ感を出す。
+- サマリー内の `data-metric-card` は上下左右に同じ呼吸感が出るよう、2列グリッドで row gap / column gap をともに確保する。カード同士が縦に接触して見える状態は避ける。
+- カードの表情は Workout のカードと揃え、`surface` / `surface-raised`、`border-strong`、深いシャドウ、18pxから24pxの丸みを基準にする。カード見出しと本文は原則左揃えにする。
+- 時系列は `data-trend-card` で薄い点線グリッド、連続した実線、淡い面塗りを使い、最新値と差分・レンジを同じカード内に併記する。実績はカテゴリ色の実線、計画は `text-secondary` の破線、目標は `primary` の水平破線で表示する。点だけの散布図に見える状態は避ける。
+- トレーニングは種目別に `data-rm-progress-card` を主役にして「推定MAX RMが伸びたか」を最初に判定する。`data-rm-status-badge` で伸びてる / 維持 / 要確認を示し、BEST RM、MAX重量、総ボリューム、総セット数は補助情報として並べる。
+- トレーニングは `data-exercise-filter` で種目ごとのチェックボックスを並べ、選択した種目だけカード表示する。全種目を常に展開して縦に肥大化させない。
+- 筋トレ履歴は日付順で追跡可能にし、各行に推定MAX RMと開始日比の差分を併記する。
 
-Spec:
+### Data Review チェックリスト
 
-- Width: flexible
-- Min height: 132px
-- Padding: 16px
-- Radius: 20px
-- Background: white
-- Border: subtle separator
-- Tap target: whole card
+- 主要指標は 1 回の目視で「最新」「差分」「推移」が把握できること。
+- すべてのカテゴリで実績、計画、目標を比較でき、表示設定で計画 / 目標を切り替えられること。
+- 身体指標は体重・体脂肪・BMI・ウエストを期間内で同じ日軸で確認できること。
+- 食事セクションで摂取カロリー、P/F/C、水分を同一時間軸で確認できること。
+- トレーニングセクションで推定MAX RMが伸びた種目数、最大伸び幅、種目別ステータスを同時に比較できること。
+- 折れ線グラフには必ず連続した線があり、点線はグリッドや補助軸だけに使うこと。
+- `primary` は Workout のアクティブ状態に強く残し、データ確認画面ではヘルスカテゴリ色と `text-secondary` / `text-muted` を中心に使うこと。
 
-States:
+## Meal Input Screen (食事入力)
 
-| State | Treatment |
-|---|---|
-| Normal | White card, subtle border |
-| Highlight | Light accent background |
-| Warning | Small warning badge, no full red background |
-| Empty | Placeholder icon + gentle copy |
-| Loading | Skeleton block |
+食事入力画面は、1日の食事を `MEAL 1`, `MEAL 2` のような単位で保存する記録UIです。Workout画面の「現在対象を選んで入力する」構造を食事に置き換え、Chat画面の自然文入力の気軽さを主入力として取り入れます。
 
-## 8.2 Today Summary Card
+### Meal Input レイアウト指針
 
-画面上部に置く、ユーザーの現在状態をまとめるカード。
+- 画面は Workout / Chat と同じ `phone-frame` を使い、ヘッダー、日次サマリー、横スクロールの meal picker、アクティブ meal editor、保存済みログの順で配置する。
+- 食事入力ヘッダーの右上は3点メニューにし、設定画面へ遷移する。AIコーチの星アイコンは使わず、AI機能は画面内の `AI整理` モードに閉じ込める。
+- 日次サマリーは実績/目標カロリーとP/F/C合計を先頭に置き、保存済みmeal数を右上の小さなバッジで示す。カロリーは `XXX/YYYkcal` 形式で表示し、実績の `XXX` を最も強く、目標の `YYY` は控えめに見せる。
+- meal picker は `MEAL 1`, `MEAL 2` を短いカードとして並べ、アクティブなmealだけ `primary` 境界と `surface-muted` で強調する。
+- meal editor は `AI整理` と `手入力` の入力方法を切り替えられるようにする。AI整理では自然言語メモを上、AI整理案を中段、P/F/Cの数値確認を下に置く。手入力ではP/F/Cを先に直接入力し、必要なら自然言語メモを残す。
+- editor header では `MEAL 1` のような対象名を主表示にし、`Draft` / `Saved` は小さな状態バッジに留める。`編集中` のような状態語を最大見出しにしない。
+- AI推定は任意です。推定せずにP/F/Cを直接入力して保存でき、推定後もP/F/Cは通常の入力欄として変更できる。
+- `+ Meal` は同じ画面内で新しいdraft mealを追加し、入力中の文脈を切らない。
 
-Content:
+### Meal Input コンポーネント指針
 
-- 今日の日付
-- 主要スコアまたは状態
-- 2〜3個の重要メトリクス
-- 軽いインサイト
+- `meal-summary-card` は実績/目標カロリー、P/F/C比率バー、P/F/Cグラム合計をまとめる。カード内の数値は Workout の metric 表現に近づけ、実績カロリーだけを大きく強調する。
+- `meal-picker-card` はmeal単位の切替面として使う。保存済みかdraftか、P/F/Cの短い要約、食事時刻を表示する。
+- `meal-editor-card` は現在のmealだけを編集する主領域です。編集中は `Draft`、保存後は `Saved HH:mm` の状態を出す。
+- `meal-entry-mode` は `AI整理` と `手入力` を切り替えるsegmented controlです。Workout画面の `segmentedControl` と同じ 36px height、`border-strong` 背景、2px padding、2px gap、active=`primary` の見た目に揃える。どちらのモードでも `Save Meal` は同じ保存操作で、P/F/Cとメモをまとめて保存する。
+- `meal-note-input` は食材名、外食の量感、補足を自然言語で残す主入力です。P/F/C入力より先に配置し、ユーザーが最初に食べた内容を書く流れにする。
+- AI整理モードにはプリセット候補チップを置かない。自然言語入力、AI整理CTA、整理案、P/F/C確認に集中させる。
+- 手入力モードにはP/F/Cプリセットチップを置いてよい。プリセットはP/F/C数値だけを反映し、自然言語メモやAI整理案は上書きしない。
+- P/F/Cプリセットの見出し右側には3点アイコンを置き、タップすると `meal-manual-preset-editor` として名前・Protein・Fat・Carbsをインライン編集できるようにする。AI整理モードにはこの編集導線を出さない。
+- `meal-ai-suggestion` は自然言語メモから推定した食材リスト、要約、信頼度を表示する。ここでP/F/C推定値を作り、下段の手動入力で修正できる前提にする。カードの境界とAIバッジもオレンジ基調にする。
+- AI整理CTAの補足テキストはボタン横に置かない。狭いphone frameでは補足はボタン下に回し、CTA自体を1列幅で確保する。
+- `meal-macro-input` は Protein / Fat / Carbs の3列固定にする。色は Protein=`nutrition-protein`, Fat=`nutrition-fat`, Carbs=`nutrition-carbs` のオレンジ系トーンに限定し、緑・青のカテゴリ色は使わない。
+- `meal-log-card` は保存済み/編集中のmealを読み返すための一覧です。タップするとそのmealを再編集できる。
 
-Example copy:
+### Meal Input チェックリスト
 
-```text
-今日はよく整っています
-睡眠時間は7時間20分、安静時心拍数も安定しています。
-```
+- `MEAL 1`, `MEAL 2` の切替が、現在どの食事を編集しているか一目で分かること。
+- P/F/Cは同じ入力密度で並び、どれか1項目だけが過度に目立たないこと。
+- 自然言語メモはP/F/C入力より上に置き、AI整理案と手動調整を経て同じ `Save Meal` で完了すること。
+- AI整理案がある場合は、推定された食材リストとP/F/Cが同じ画面内で確認できること。
+- 推定せずに手入力だけでP/F/Cを保存できること。
+- 推定後のP/F/Cは編集可能で、AI整理案が確定値のように見えないこと。
+- 保存後は一覧とpickerの両方で `Saved` 状態が確認できること。
+- 追加mealは空のdraftとして作られ、既存mealの内容を上書きしないこと。
 
-## 8.3 Ring Progress
+## Do's and Don'ts
 
-Apple Health / Fitness 的な印象を作るための進捗表現。ただし見た目をそのままコピーしない。
+Do: アクティブ状態には必ず `primary` を使い、現在どのセットに集中すべきかを一目で分かるようにします。
 
-Rules:
+Do: 数値は大きく太く表示します。重量、回数、タイマーは説明文よりも先に目に入るべきです。
 
-- 最大3リングまで
-- 色はカテゴリに対応
-- 中央には主指標を1つだけ表示
-- 進捗率だけでなく「何が良いのか」を添える
+Do: リスト画面では選択、アクティブ画面では記録という役割分担を守ります。
 
-Use cases:
+Do: セット行の列構成は崩さず、`SET / PLAN / ACTUAL / CHECK` の読み順を維持します。
 
-- 活動量
-- 水分摂取
-- 習慣達成
-- 服薬完了
+Don't: 種目ごとに別のアクセントカラーを割り当てないでください。色の意味が状態から種目分類へ分散し、トレーニング中の判断速度が落ちます。
 
-## 8.4 Trend Chart
+Don't: 低優先度のメタ情報を `primary` で強調しないでください。オレンジはアクティブ、休憩、重要CTAのために残します。
 
-ヘルスケアでは単日の数値よりトレンドが重要。
+Don't: カード間隔を詰めすぎないでください。ジム中の片手操作では、密度よりタップの確実性を優先します。
 
-Rules:
+Don't: 完了、休憩、次セット準備完了を同じ見た目にしないでください。状態が似ると、誤って次の操作に進むリスクが上がります。
 
-- 軸線は薄くする
-- ラベルは最小限
-- 異常値を派手にしすぎない
-- 期間切り替えを上部に配置
-- タップ時に日付と値を表示
+## State Model
 
-Chart types:
+Workout画面の視覚状態は、データ構造よりも「今ユーザーが取るべき行動」を優先して設計します。状態名は実装のstateと完全一致しなくてもよいですが、見た目の切り替えはこのモデルに沿わせます。
 
-| Data | Chart |
-|---|---|
-| 心拍・体重・血圧 | Line chart |
-| 睡眠・活動時間 | Bar chart |
-| 習慣達成 | Calendar heatmap |
-| カテゴリ内訳 | Donut / stacked bar |
+`list` はワークアウト全体の俯瞰状態です。ユーザーは種目を選び、現在の進捗と残り作業を確認します。主なコンポーネントは `session-card`, `exercise-card`, `exercise-card-active`, `bottom-bar` です。
 
-## 8.5 Insight Card
+`active-idle` は種目詳細を開いたが、まだセット入力を開始していない状態です。次に行うセットを上段ステータスカードと `set-row-active` で示します。
 
-データから得られる解釈を短く表示する。
+`warmup-active` はウォームアップ進行中の状態です。`warmup-card-active` を使い、メインセットより軽い操作に見せつつ、現在の実行対象だけは明確にします。
 
-```text
-睡眠の一貫性が上がっています
-過去7日間、就寝時刻のばらつきが少なくなっています。
-```
+`logging` はセット実績を入力または確認している状態です。`logging-card`, `metric-chip`, `secondary-action` を使い、重量と回数を短時間で確認できるようにします。
 
-Rules:
+`resting` はセット完了後の休憩状態です。`rest-card` と `metric-chip` を使い、タイマーを最優先で読ませます。`Stop` は `danger-action`、`Done` は主要または補助CTAとして扱います。
 
-- 1カード1インサイト
-- 断定しすぎない
-- 根拠となる期間を表示
-- 行動提案は1つまで
+`next-ready` は休憩後に次セットへ進める状態です。`next-ready-card` を使い、ユーザーが迷わず `Log Set` へ戻れるようにします。
 
-## 8.6 Permission Card
+`history` は読み取り専用状態です。`history-panel` と `history-row` を使い、操作より比較と振り返りを優先します。
 
-権限要求の前に説明するカード。
+`complete` は種目完了状態です。`complete-state` を使い、完了の達成感を出しつつ、次の種目へ意識を移せるようにします。
 
-```text
-ヘルスケアデータへのアクセス
-歩数と心拍数を使って、日々のコンディションをわかりやすく表示します。
-[許可して続ける]
-```
+## Implementation Notes
 
-Rules:
+このDESIGN.mdは `src/pages/WorkoutSetLogPage.tsx` の現在実装を前提にしていますが、実装ファイルへ直接依存しすぎないようにしています。トークンはUIの意図を固定し、実装は必要に応じてReact stateやpropsへ変換してください。
 
-- 何に使うかを明記
-- 許可しない場合の体験も説明
-- OS権限ダイアログを突然出さない
+`ACTIVE_SET_COLOR` は `colors.primary` に対応します。現在の値は `#FF6B2C` です。
 
----
+`INACTIVE_SET_COLOR` は `colors.inactive` に対応します。lintのコントラスト基準を満たすため、現在のデザイントークンでは `#8A8A93` を推奨値にしています。
 
-## 9. Navigation
+既存実装がインラインスタイルを使う場合も、色・角丸・余白はこのファイルのトークン名をコメントや変数名に反映すると、後続の変更が追いやすくなります。
 
-### 9.1 Recommended Tabs
+新しいコンポーネントを追加する場合は、まず `components` に視覚トークンを足し、その後でMarkdown本文に使いどころを説明してください。これにより、lintと人間のレビューの両方で設計意図を確認できます。
 
-```text
-Today     Trends     Records     Insights     Settings
-```
+## Export Targets
 
-| Tab | Purpose |
-|---|---|
-| Today | 今日の状態と主要カード |
-| Trends | 長期推移・チャート |
-| Records | 入力・履歴・医療記録 |
-| Insights | パーソナルな気づき |
-| Settings | データ、通知、プライバシー |
+このDESIGN.mdは `@google/design.md` の `export` コマンドでTailwindやDTCG形式へ変換できる構造にしています。
 
-### 9.2 Navigation Rules
+現在利用できる `@google/design.md 0.1.1` では、Tailwind向けには `tailwind` を使います。
 
-- 主要導線はタブに置く
-- 深い情報はカードタップ後の詳細画面へ
-- 医療・プライバシー関連設定は見つけやすくする
-- 戻る操作を複雑にしない
+Tailwind v4向けのCSS変数形式が必要な場合は、インストール済みCLIが `css-tailwind` をサポートしているか確認してから使います。現時点のCLIでは `css-tailwind` は未対応です。
 
----
+DTCG形式のデザイントークンが必要な場合は `dtcg` を使います。
 
-## 10. Interaction & Motion
+エクスポート結果をリポジトリに保存するかどうかは、実装側でトークンを実際に参照する段階で判断してください。現時点では `DESIGN.md` を単一の設計ソースとして扱うのが最も安全です。
 
-### 10.1 Motion Principles
+## Screen Review Checklist
 
-- 状態変化を理解させるために使う
-- ユーザーを驚かせない
-- 長いアニメーションは避ける
-- 数値更新は軽くフェード/カウントアップ
+Use this checklist when reviewing future changes to the Workout UI. It is intentionally screen-based so design review can happen before or after implementation.
 
-### 10.2 Motion Tokens
+List screen:
 
-```css
---duration-fast: 120ms;
---duration-normal: 220ms;
---duration-slow: 360ms;
+- The screen should communicate overall workout progress before individual set details.
+- `session-card` should summarize the session without competing with exercise cards.
+- Each `exercise-card` should show name, target, previous result, next state, and set completion count.
+- The currently selected exercise should use `exercise-card-active` and avoid introducing a second accent color.
+- The bottom bar should keep `+ Exercise` and `Finish Workout` visually grouped as session-level actions.
 
---easing-standard: cubic-bezier(0.2, 0.0, 0.2, 1);
---easing-soft: cubic-bezier(0.16, 1, 0.3, 1);
-```
+Active exercise screen:
 
-### 10.3 Examples
+- The header should make it clear which exercise is active.
+- The top status area should answer “what should I do next?” before any secondary information.
+- `Sets` and `History` tabs should preserve a clear difference between logging and reading modes.
+- The set table should keep the `SET / PLAN / ACTUAL / CHECK` order.
+- The active set should be identifiable by both color and surface treatment, not color alone.
 
-- Card tap: scale 0.98 → 1.0
-- Modal: bottom sheet slide up
-- Chart: fade in + line draw
-- Ring: progress sweep on first load only
-- Insight: fade in, no bounce
+Warmup state:
 
----
+- Warmup cards should feel lighter than main working sets.
+- The current warmup set should use `warmup-card-active`.
+- Skipping warmups should not visually look like completing main work.
+- Warmup completion should move attention toward the first incomplete working set.
 
-## 11. Content Design
+Logging state:
 
-### 11.1 Voice
+- Weight and reps should use `metric-chip` or equivalent numeric emphasis.
+- `Complete Set` should remain the strongest action inside the logging card.
+- Notes and edit affordances should stay secondary to set completion.
+- Completing a set should create a visible change in the corresponding `SetRow`.
 
-- Calm
-- Supportive
-- Clear
-- Non-judgmental
-- Evidence-aware
+Resting state:
 
-### 11.2 Copy Rules
+- `RESTING` and the timer should be the dominant information.
+- `Stop` should use danger styling only when it interrupts or cancels rest.
+- `Done` should clearly move the user toward the next set.
+- Time adjustment controls should not compete visually with the timer.
 
-Do:
+Next-ready state:
 
-- 「いつもより少し高めです」
-- 「過去7日間の傾向です」
-- 「記録すると、より正確な傾向が見られます」
-- 「このデータは端末内で処理されます」
+- The next set should be easy to start without rereading the full table.
+- `next-ready-card` should communicate readiness, not completion.
+- `Log Set` should be easier to notice than `Add Rest`.
+- The next target weight and reps should remain visible.
 
-Avoid:
+History tab:
 
-- 「危険です」※緊急時以外
-- 「失敗しました」
-- 「あなたは運動不足です」
-- 根拠のない診断表現
+- History should read as a comparison and review surface, not an editing surface.
+- `history-panel` should show exercise identity and previous performance.
+- `history-row` should keep completed sets scannable and low-drama.
+- Empty history should explain what will appear after sets are completed.
 
-### 11.3 Medical Disclaimer
+Complete state:
 
-アプリが診断を行わない場合は、必要な画面に短く明記する。
-
-```text
-この情報は健康管理の参考として提供されるもので、医療上の診断ではありません。気になる症状がある場合は医療機関に相談してください。
-```
-
----
-
-## 12. Accessibility
-
-### 12.1 Required Standards
-
-- テキストと背景のコントラストを十分に確保
-- 色だけで状態を伝えない
-- VoiceOver / TalkBack 用ラベルを設定
-- Dynamic Type / 文字サイズ変更に対応
-- タップ領域は44px以上
-- モーション低減設定に対応
-
-### 12.2 Data Accessibility
-
-Charts must include text alternatives.
-
-Example:
-
-```text
-過去7日間の平均心拍数は72bpmで、前週より3bpm低下しています。
-```
-
----
-
-## 13. Dark Mode
-
-### 13.1 Dark Palette
-
-```css
---color-bg-primary-dark: #000000;
---color-bg-secondary-dark: #1C1C1E;
---color-bg-tertiary-dark: #2C2C2E;
-
---color-text-primary-dark: #FFFFFF;
---color-text-secondary-dark: #EBEBF5B3;
---color-text-tertiary-dark: #EBEBF566;
-
---color-separator-dark: rgba(84, 84, 88, 0.65);
-```
-
-### 13.2 Dark Mode Rules
-
-- 真っ黒背景 + 少し明るいカードで分離する
-- 影ではなく明度差で階層を出す
-- 彩度の高い色は少し抑える
-- チャートのグリッドはさらに薄くする
-
----
-
-## 14. Example Screens
-
-### 14.1 Today Screen
-
-```text
-Today
-5月10日 日曜日
-
-[Summary Card]
-今日は安定しています
-睡眠・心拍・活動量のバランスが良好です。
-
-[Metric Grid]
-心拍数       72 bpm
-睡眠         7時間20分
-歩数         8,430歩
-水分         1.4 L
-
-[Insight]
-睡眠のリズムが整っています
-過去7日間、就寝時刻のばらつきが少なくなっています。
-```
-
-### 14.2 Metric Detail Screen
-
-```text
-心拍数
-72 bpm
-通常範囲です
-
-[7日 / 30日 / 90日]
-[Line Chart]
-
-インサイト
-朝の安静時心拍数が過去30日で安定しています。
-
-記録
-5月10日 08:12    72 bpm
-5月09日 08:10    73 bpm
-```
-
-### 14.3 Privacy Screen
-
-```text
-データとプライバシー
-
-ヘルスケアデータ
-歩数、心拍数、睡眠データを使用しています。
-
-データの保存場所
-データは端末内に保存されます。
-
-[データをエクスポート]
-[すべてのデータを削除]
-```
-
----
-
-## 15. Design Tokens Summary
-
-```css
-:root {
-  --color-bg-primary: #FFFFFF;
-  --color-bg-secondary: #F5F5F7;
-  --color-text-primary: #111111;
-  --color-text-secondary: #6E6E73;
-
-  --color-heart: #FF3B30;
-  --color-activity: #FF2D55;
-  --color-sleep: #5E5CE6;
-  --color-mind: #34C759;
-  --color-nutrition: #FF9500;
-  --color-water: #0A84FF;
-  --color-medical: #30B0C7;
-
-  --space-8: 8px;
-  --space-12: 12px;
-  --space-16: 16px;
-  --space-20: 20px;
-  --space-24: 24px;
-  --space-32: 32px;
-
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
-  --radius-pill: 999px;
-
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
-}
-```
-
----
-
-## 16. Implementation Notes
-
-### 16.1 React / Web Naming Example
-
-```tsx
-<Card variant="metric" tone="heart">
-  <MetricCard
-    icon="heart"
-    label="心拍数"
-    value="72"
-    unit="bpm"
-    status="通常範囲です"
-  />
-</Card>
-```
-
-### 16.2 Component Names
-
-- `MetricCard`
-- `SummaryCard`
-- `InsightCard`
-- `RingProgress`
-- `TrendChart`
-- `PermissionCard`
-- `PrivacyNotice`
-- `HealthBadge`
-- `SegmentedControl`
-- `RecordListItem`
-
----
-
-## 17. QA Checklist
-
-Before release:
-
-- [ ] 数値が一目で読める
-- [ ] カードごとの目的が1つに絞られている
-- [ ] 色だけで状態を伝えていない
-- [ ] 権限要求の理由が明確
-- [ ] 医療診断に見える文言がない
-- [ ] ダークモードでコントラストが保たれている
-- [ ] 文字サイズ拡大時にレイアウトが破綻しない
-- [ ] チャートにテキスト代替がある
-- [ ] データ削除・エクスポート導線がある
-- [ ] 通知文言が不安を煽らない
-
----
-
-
----
-
-## 19. Apple Health-like Screen Patterns
-
-このデザインシステムでは、Apple Health風の情報設計を以下の3種類の画面パターンに分けて扱う。
-
-### 19.1 Summary / Pinned Metrics Screen
-
-複数の健康指標を一覧する画面。ユーザーが「今の状態」をざっと確認するための場所。
-
-Rules:
-
-- 複数指標を表示してよい。
-- 各カードは1指標のみを扱う。
-- カード内では、指標名・最新値・日付・小さなトレンドのみを表示する。
-- 詳細なグラフや説明はカードタップ後の詳細画面に移動する。
-- カード全体をタップ領域にする。
-- 右上に日付または chevron を置き、詳細へ進めることを示す。
-
-Example:
-
-```text
-Summary
-Pinned                          Edit
-
-[Body Fat Percentage]
-26.4 %                 May 8  ›
-
-[Body Mass Index]
-26.8 BMI               May 8  ›
-
-[Height]
-171 cm                 May 8  ›
-```
-
-### 19.2 Trends Feed Screen
-
-複数のトレンドカードを縦に並べる画面。ユーザーが長期傾向や変化を発見するための場所。
-
-Rules:
-
-- 複数指標を表示してよい。
-- 1カード = 1トレンド。
-- カードタイトルにはカテゴリ色のアイコンと指標名を表示する。
-- 本文は「何が起きているか」を1文で伝える。
-- ミニチャートは補助情報として使う。
-- カード右上に chevron を置き、詳細画面への導線にする。
-
-Example:
-
-```text
-Trends
-
-[Active Energy]
-You averaged 653 kcal per day over the last 25 weeks.
-[mini bar chart]
-
-[Resting Heart Rate]
-On average, your resting heart rate was 67 BPM over the last 25 weeks.
-[mini line chart]
-```
-
-### 19.3 Metric Detail Screen
-
-1つの健康指標を深く見る画面。Apple Health風にする場合、この画面では原則として1指標だけを主役にする。
-
-Rules:
-
-- 1画面 = 1指標を原則とする。
-- 複数指標の比較は Summary / Trends / Insights 側で扱う。
-- 上部には戻るボタン、中央タイトル、右上に追加・記録ボタンを置く。
-- 期間切替はグラフの直上に置く。
-- 主要数値は AVERAGE / LATEST などのラベルとセットで表示する。
-- グラフは画面幅いっぱいに近い横長領域を使う。
-- 画面下部に説明、関連アプリ、記録履歴などを置く。
-
-Example:
-
-```text
-‹                         Weight                         +
-
-[D] [W] [M] [6M] [Y]
-
-AVERAGE
-77.62 kg
-Apr 2026
-
-[large line chart]
-
-About Weight
-This is your body weight. It includes your total body water, muscle, bone mass, and fat.
-```
-
----
-
-## 20. Navigation Bar & Floating Controls
-
-### 20.1 Detail Navigation Bar
-
-Metric Detail Screen では、iOSネイティブに近いナビゲーション構造を使う。
-
-| Element | Placement | Role |
-|---|---|---|
-| Back button | Top left | 前画面へ戻る |
-| Title | Top center | 現在の指標名 |
-| Add button | Top right | データ追加・記録 |
-
-Spec:
-
-```css
---nav-height: 96px;
---nav-bg-dark: #1C1C1E;
---nav-button-size: 48px;
---nav-button-bg-dark: #242428;
---nav-button-border-dark: rgba(255,255,255,0.08);
-```
-
-Rules:
-
-- 戻るボタンは必ず左上に置く。
-- 追加・記録・編集など、画面の主要アクションは右上に置く。
-- タイトルは中央配置を基本とする。
-- ナビゲーションアイコンは円形ボタンに入れ、タップ領域を44px以上にする。
-- 詳細画面ではナビゲーションバーを視覚的に固定し、スクロール中も迷子にならないようにする。
-
-### 20.2 Bottom Tab / Search Floating Controls
-
-Summary / Trends 系の画面では、下部にタブバーと検索ボタンを置くことができる。
-
-Rules:
-
-- タブは主要導線だけに絞る。
-- 検索は右下の円形フローティングボタンとして独立させてもよい。
-- 背景には blur / translucent glass を使い、コンテンツから浮いて見せる。
-- 下部UIがカードやグラフを隠しすぎないよう、safe area 分の余白を確保する。
-
----
-
-## 21. Chart Interaction: Hover / Tap Tooltip
-
-詳細グラフでは、ユーザーが線上のデータポイントに触れたときに、値・単位・日付をコンパクトなツールチップで表示する。
-
-### 21.1 Behavior
-
-- タップ、ホバー、ドラッグで最も近いデータポイントにフォーカスする。
-- フォーカス中は縦のガイドラインを表示する。
-- フォーカスされた点はリングまたは拡大で強調する。
-- 他の点は過度に目立たせない。
-- ツールチップには、集計ラベル・値・単位・日付を表示する。
-- ツールチップは原則としてフォーカス点の上に表示する。
-- 画面端に近い場合は左右に反転し、画面外にはみ出さない。
-
-### 21.2 Tooltip Content
-
-```text
-AVERAGE
-77.62 kg
-Apr 2026
-```
-
-### 21.3 Tooltip Style
-
-```css
---tooltip-bg-dark: rgba(44, 44, 46, 0.92);
---tooltip-border-dark: rgba(255,255,255,0.10);
---tooltip-radius: 14px;
---tooltip-padding-x: 14px;
---tooltip-padding-y: 10px;
---tooltip-label-size: 12px;
---tooltip-value-size: 30px;
---tooltip-date-size: 15px;
-```
-
-Rules:
-
-- ツールチップ背景はカードより少し明るいダークグレーにする。
-- 数値を最も大きく、単位は数値より小さく表示する。
-- ラベルは uppercase + secondary text にする。
-- 値の色は原則白、アクセントカラーはポイント・ライン・補助情報に使う。
-- 長押し・ドラッグ中も読みやすい位置を保つ。
-
----
-
-## 22. Health Card Patterns
-
-### 22.1 Pinned Metric Card
-
-Summary 画面で使用する、現在値を確認するための大きめカード。
-
-Spec:
-
-```css
---pinned-card-bg-dark: #1C1C1E;
---pinned-card-radius: 28px;
---pinned-card-padding: 20px;
---pinned-card-min-height: 148px;
-```
-
-Content:
-
-- 指標アイコン + 指標名
-- 日付
-- 最新値
-- 単位
-- chevron
-- 必要に応じて小さなドット/ミニチャート
-
-Rules:
-
-- 1カードに複数の指標を混ぜない。
-- 値がない場合は `No Data` を表示し、空状態を責めない。
-- 指標名とアクセントカラーは一致させる。
-
-### 22.2 Trend Insight Card
-
-Trends 画面で使用する、文章 + ミニチャートのカード。
-
-Spec:
-
-```css
---trend-card-bg-dark: #1C1C1E;
---trend-card-radius: 28px;
---trend-card-padding: 18px 20px;
---trend-card-min-height: 220px;
-```
-
-Content:
-
-- 指標名 + アイコン
-- 短いインサイト文
-- 区切り線
-- ミニチャート
-- 期間ラベル
-
-Rules:
-
-- 本文は2行程度に収める。
-- ミニチャートは詳細分析ではなく、傾向の補助として扱う。
-- 平均線や基準線をアクセントカラーで表示する。
-
----
-
-## 23. Recommended Information Architecture
-
-Apple Health風にする場合、画面ごとに扱う情報量を明確に分ける。
-
-| Screen | Metrics | Purpose |
-|---|---:|---|
-| Summary | Multiple | 今日の状態・ピン留め指標を見る |
-| Trends | Multiple | 長期傾向・変化を発見する |
-| Metric Detail | Single | 1指標を深く分析する |
-| Record Entry | Single | 1指標を記録・編集する |
-| Insights | Multiple | パーソナルな提案を見る |
-
-Key rule:
-
-> 一覧画面では複数指標を扱ってよい。詳細画面では1指標に集中する。
-
-
-## 18. References
-
-- Apple Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines/
-- Designing for iOS: https://developer.apple.com/design/human-interface-guidelines/designing-for-ios
-- Typography: https://developer.apple.com/design/human-interface-guidelines/typography
-- SF Symbols: https://developer.apple.com/sf-symbols/
+- `complete-state` should clearly mark the exercise as finished.
+- The design should help the user transition to the next exercise.
+- Success styling should be present but not louder than active logging states.
+- Completed sets should remain inspectable after the complete message appears.
